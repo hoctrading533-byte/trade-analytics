@@ -1,7 +1,7 @@
 <template>
   <div class="tz-page" :data-theme="theme">
     <aside class="tz-sidebar">
-      <div class="tz-sidebar-logo"><div class="tz-logo-icon">TZ</div><div class="tz-logo-text">Trade<span>Zella</span></div></div>
+      <div class="tz-sidebar-logo"><div class="tz-logo-icon">LF</div><div class="tz-logo-text">Lumina<span>Fox</span></div></div>
       <nav class="tz-nav-section">
         <div v-for="section in navSections" :key="section.label" class="tz-nav-group">
           <div class="tz-nav-label">{{ section.label }}</div>

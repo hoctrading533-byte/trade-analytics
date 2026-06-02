@@ -2,8 +2,8 @@
   <div class="tz-page" :data-theme="theme">
     <aside class="tz-sidebar">
       <div class="tz-sidebar-logo">
-        <div class="tz-logo-icon">TZ</div>
-        <div class="tz-logo-text">Trade<span>Zella</span></div>
+        <div class="tz-logo-icon">LF</div>
+        <div class="tz-logo-text">Lumina<span>Fox</span></div>
       </div>
 
       <nav class="tz-nav-section">
