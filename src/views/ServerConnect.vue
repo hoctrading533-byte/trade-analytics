@@ -14,10 +14,13 @@
     </aside>
     <div class="tz-main">
       <header class="tz-header">
-        <div class="tz-header-welcome"><h2>Kết nối MT5</h2><p>Kết nối tài khoản MT5 để đồng bộ dữ liệu giao dịch thực tế</p></div>
+        <div class="tz-header-welcome">
+          <h2>{{ t('server.title') }}</h2>
+          <p>{{ locale === 'en' ? 'Connect MT5 account to sync real trading history' : 'Kết nối tài khoản MT5 để đồng bộ dữ liệu giao dịch thực tế' }}</p>
+        </div>
         <div class="tz-header-controls">
           <button class="tz-btn-add" @click="useMockData" :disabled="isMockMode">
-            {{ isMockMode ? '✓ Mock Data Active' : 'Dùng Mock Data' }}
+            {{ isMockMode ? '✓ Mock Data Active' : (locale === 'en' ? 'Use Mock Data' : 'Dùng Mock Data') }}
           </button>
           <button class="tz-icon-btn" type="button" @click="toggleTheme"><span class="tz-theme-toggle-knob">{{ theme === 'dark' ? '🌙' : '☀️' }}</span></button>
         </div>
@@ -25,89 +28,91 @@
       <main class="tz-dashboard">
         <div v-if="errorMessage" class="tz-alert danger">{{ errorMessage }}</div>
         <div v-if="successMessage" class="tz-alert success">{{ successMessage }}</div>
-        <div v-if="isMockMode" class="tz-alert info">Đang sử dụng dữ liệu mô phỏng (Mock Data). Dữ liệu này phục vụ demo và phát triển.</div>
+        <div v-if="isMockMode" class="tz-alert info">
+          {{ locale === 'en' ? 'Using mock data for demonstration and development purposes.' : 'Đang sử dụng dữ liệu mô phỏng (Mock Data). Dữ liệu này phục vụ demo và phát triển.' }}
+        </div>
 
         <section class="tz-sc-grid">
           <article class="tz-sc-panel">
-            <h3>Thông tin tài khoản MT5</h3>
-            <label class="tz-sc-label">MT5 Login</label>
+            <h3>{{ t('server.mt5Info') }}</h3>
+            <label class="tz-sc-label">{{ t('server.login') }}</label>
             <input v-model.trim="form.login" class="tz-input" placeholder="Ví dụ: 41512345" />
 
-            <label class="tz-sc-label">MT5 Password</label>
-            <input v-model.trim="form.password" type="password" class="tz-input" :placeholder="'Mật khẩu trader/investor'" />
+            <label class="tz-sc-label">{{ t('server.password') }}</label>
+            <input v-model.trim="form.password" type="password" class="tz-input" :placeholder="t('server.passwordHint')" />
 
-            <label class="tz-sc-label">MT5 Server</label>
+            <label class="tz-sc-label">{{ t('server.serverLabel') }}</label>
             <input v-model.trim="form.server" class="tz-input" placeholder="Ví dụ: Exness-MT5Trial14" />
 
-            <label class="tz-sc-label">Số ngày đồng bộ</label>
+            <label class="tz-sc-label">{{ t('server.days') }}</label>
             <input v-model.number="syncDays" type="number" min="1" max="365" class="tz-input" />
 
             <div class="tz-sc-actions">
               <button class="tz-btn-add" :disabled="connecting" @click="connectAndSync">
-                {{ connecting ? 'Đang kết nối...' : 'Kết nối & Đồng bộ ngay' }}
+                {{ connecting ? t('server.connecting') : t('server.connectSync') }}
               </button>
               <button class="tz-btn-filter" :disabled="syncing || !isConnected" @click="syncNow">
-                {{ syncing ? 'Đang đồng bộ...' : 'Đồng bộ lại' }}
+                {{ syncing ? t('server.syncing') : t('server.syncAgain') }}
               </button>
               <button class="tz-btn-filter tz-btn-danger" :disabled="!isConnected" @click="disconnect">
-                Hủy kết nối
+                {{ t('server.disconnect') }}
               </button>
             </div>
           </article>
 
           <article class="tz-sc-panel">
-            <h3>Trạng thái kết nối</h3>
+            <h3>{{ t('server.status') }}</h3>
             <div class="tz-sc-status" :class="{ on: isConnected }">
-              <span>{{ isConnected ? `Login: ${status.login || form.login || '--'}` : 'Chưa kết nối MT5' }}</span>
-              <span class="tz-pill" :class="{ on: isConnected }">{{ isConnected ? 'Online' : 'Offline' }}</span>
+              <span>{{ isConnected ? `Login: ${status.login || form.login || '--'}` : t('server.notConnected') }}</span>
+              <span class="tz-pill" :class="{ on: isConnected }">{{ isConnected ? t('server.online') : t('server.offline') }}</span>
             </div>
             <div class="tz-sc-info">
               <div><dt>Server</dt><dd>{{ status.server || form.server || '--' }}</dd></div>
-              <div><dt>Lần sync gần nhất</dt><dd>{{ lastSyncText }}</dd></div>
-              <div><dt>Tổng lệnh đã đồng bộ</dt><dd>{{ syncSummary.totalDeals }}</dd></div>
-              <div><dt>LONG / SHORT</dt><dd>{{ syncSummary.longCount }} / {{ syncSummary.shortCount }}</dd></div>
-              <div><dt>Net PnL</dt><dd :class="syncSummary.netProfit >= 0 ? 'ok' : 'bad'">{{ formatMoney(syncSummary.netProfit) }}</dd></div>
+              <div><dt>{{ t('server.lastSync') }}</dt><dd>{{ lastSyncText }}</dd></div>
+              <div><dt>{{ t('server.totalDeals') }}</dt><dd>{{ syncSummary.totalDeals }}</dd></div>
+              <div><dt>{{ t('server.longShort') }}</dt><dd>{{ syncSummary.longCount }} / {{ syncSummary.shortCount }}</dd></div>
+              <div><dt>{{ t('server.netPnl') }}</dt><dd :class="syncSummary.netProfit >= 0 ? 'ok' : 'bad'">{{ formatMoney(syncSummary.netProfit) }}</dd></div>
             </div>
           </article>
         </section>
 
         <section class="tz-sc-guide">
-          <h3>Hướng dẫn kết nối MT5 thật</h3>
+          <h3>{{ locale === 'en' ? 'How to Connect Real MT5' : 'Hướng dẫn kết nối MT5 thật' }}</h3>
           <div class="tz-sc-steps">
             <div class="tz-sc-step">
               <span class="tz-sc-step-num">1</span>
               <div>
-                <strong>Mở MT5 trên máy tính</strong>
-                <p>Đăng nhập tài khoản giao dịch thật của bạn trên MetaTrader 5.</p>
+                <strong>{{ locale === 'en' ? 'Open MT5 on PC' : 'Mở MT5 trên máy tính' }}</strong>
+                <p>{{ locale === 'en' ? 'Login to your real trading account on MetaTrader 5.' : 'Đăng nhập tài khoản giao dịch thật của bạn trên MetaTrader 5.' }}</p>
               </div>
             </div>
             <div class="tz-sc-step">
               <span class="tz-sc-step-num">2</span>
               <div>
-                <strong>Cho phép kết nập API</strong>
-                <p>Vào Tools → Options → Expert Advisors → tick "Allow WebRequest for the following URL" và thêm URL server.</p>
+                <strong>{{ locale === 'en' ? 'Allow API WebRequests' : 'Cho phép kết nối API' }}</strong>
+                <p>{{ locale === 'en' ? 'Go to Tools → Options → Expert Advisors → tick "Allow WebRequest for the following URL" and add the server URL.' : 'Vào Tools → Options → Expert Advisors → tick "Allow WebRequest for the following URL" và thêm URL server.' }}</p>
               </div>
             </div>
             <div class="tz-sc-step">
               <span class="tz-sc-step-num">3</span>
               <div>
-                <strong>Nhập thông tin đăng nhập</strong>
-                <p>Điền Login ID, Password (trader/investor) và Server name (VD: Exness-MT5Trial14).</p>
+                <strong>{{ locale === 'en' ? 'Enter Login Details' : 'Nhập thông tin đăng nhập' }}</strong>
+                <p>{{ locale === 'en' ? 'Fill in Login ID, Password (trader/investor) and Server name (e.g., Exness-MT5Trial14).' : 'Điền Login ID, Password (trader/investor) và Server name (VD: Exness-MT5Trial14).' }}</p>
               </div>
             </div>
             <div class="tz-sc-step">
               <span class="tz-sc-step-num">4</span>
               <div>
-                <strong>Nhấn "Kết nối & Đồng bộ"</strong>
-                <p>Hệ thống sẽ kết nối đến server, tải dữ liệu giao dịch và phân tích ngay lập tức.</p>
+                <strong>{{ locale === 'en' ? 'Click "Connect & Sync"' : 'Nhấn "Kết nối & Đồng bộ"' }}</strong>
+                <p>{{ locale === 'en' ? 'The system will connect to the server, fetch trading history and analyze it instantly.' : 'Hệ thống sẽ kết nối đến server, tải dữ liệu giao dịch và phân tích ngay lập tức.' }}</p>
               </div>
             </div>
           </div>
         </section>
 
         <section class="tz-sc-mock-hint">
-          <h3>⚠️ Chưa có backend?</h3>
-          <p>Nếu bạn chưa có server backend, hãy nhấn nút <strong>"Dùng Mock Data"</strong> ở góc trên để xem dữ liệu mẫu. Trang Dashboard và Analytics sẽ hiển thị dữ liệu mô phỏng để bạn kiểm tra giao diện.</p>
+          <h3>{{ locale === 'en' ? '⚠️ No backend yet?' : '⚠️ Chưa có backend?' }}</h3>
+          <p>{{ locale === 'en' ? 'If you do not have a backend server running, click "Use Mock Data" in the header to preview features. The Dashboard and Analytics pages will automatically render mockup data.' : 'Nếu bạn chưa có server backend, hãy nhấn nút "Dùng Mock Data" ở góc trên để xem dữ liệu mẫu. Trang Dashboard và Analytics sẽ hiển thị dữ liệu mô phỏng để bạn kiểm tra giao diện.' }}</p>
         </section>
       </main>
     </div>

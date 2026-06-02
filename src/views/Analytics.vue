@@ -27,17 +27,17 @@
     <div class="tz-main">
       <header class="tz-header">
         <div class="tz-header-welcome">
-          <h2>Phân tích giao dịch chuyên sâu</h2>
-          <p>Phân tích tổng hợp & chi tiết từng lệnh</p>
+          <h2>{{ t('analytics.title') }}</h2>
+          <p>{{ t('analytics.subtitle') }}</p>
         </div>
         <div class="tz-header-controls">
           <button class="tz-btn-filter" type="button" @click="switchMode">
-            {{ deepMode ? 'Tổng quan' : 'Chi tiết từng lệnh' }}
+            {{ deepMode ? t('analytics.overviewMode') : t('analytics.detailMode') }}
           </button>
-          <RouterLink class="tz-btn-add" to="/journal">+ Add Trade</RouterLink>
+          <RouterLink class="tz-btn-add" to="/journal">{{ t('analytics.addTrade') }}</RouterLink>
           <label class="tz-search-bar">
             <span>⌕</span>
-            <input v-model="search" type="text" placeholder="Search trades..." />
+            <input v-model="search" type="text" :placeholder="t('analytics.searchPlaceholder')" />
           </label>
           <button class="tz-icon-btn" type="button" title="Toggle theme" @click="toggleTheme">
             <span class="tz-theme-toggle-knob">{{ theme === 'dark' ? '🌙' : '☀️' }}</span>
@@ -57,9 +57,9 @@
         <section v-if="!deepMode" class="tz-row tz-row-1">
           <article class="tz-chart-card" style="grid-column: 1 / 3;">
             <div class="tz-chart-header">
-              <div class="tz-chart-title">Phân tích PnL theo Setup</div>
+              <div class="tz-chart-title">{{ t('analytics.pnlBySetup') }}</div>
               <select class="tz-select" v-model="setupFilter">
-                <option value="all">All Setups</option>
+                <option value="all">{{ t('analytics.allSetups') }}</option>
                 <option v-for="s in setupNames" :key="s" :value="s">{{ s }}</option>
               </select>
             </div>
@@ -79,14 +79,14 @@
           </article>
 
           <article class="tz-chart-card">
-            <div class="tz-chart-header"><div class="tz-chart-title">Phân phối R Multiple</div></div>
+            <div class="tz-chart-header"><div class="tz-chart-title">{{ t('analytics.distributionTitle') }}</div></div>
             <div class="tz-distribution-wrap">
               <canvas ref="distRef"></canvas>
             </div>
           </article>
 
           <article class="tz-chart-card">
-            <div class="tz-chart-header"><div class="tz-chart-title">Phân tích hành vi</div></div>
+            <div class="tz-chart-header"><div class="tz-chart-title">{{ t('analytics.behaviorTitle') }}</div></div>
             <div class="tz-behavior-summary">
               <div class="tz-behavior-score">
                 <div class="tz-bs-ring">
@@ -106,7 +106,7 @@
 
         <section v-if="!deepMode" class="tz-row tz-row-2">
           <article class="tz-chart-card">
-            <div class="tz-chart-header"><div class="tz-chart-title">Performance Metrics chi tiết</div></div>
+            <div class="tz-chart-header"><div class="tz-chart-title">{{ locale === 'en' ? 'Detailed Performance Metrics' : 'Performance Metrics chi tiết' }}</div></div>
             <div class="tz-analytics-table">
               <table class="tz-atable">
                 <thead>
@@ -126,19 +126,19 @@
 
           <article class="tz-chart-card">
             <div class="tz-chart-header">
-              <div class="tz-chart-title">Phân tích Symbol & Strategy</div>
+              <div class="tz-chart-title">{{ t('analytics.symbolStrategyTitle') }}</div>
               <select class="tz-select" v-model="analysisTab">
-                <option value="symbol">By Symbol</option>
-                <option value="strategy">By Strategy</option>
-                <option value="session">By Session</option>
-                <option value="emotion">By Emotion</option>
+                <option value="symbol">{{ locale === 'en' ? 'By Symbol' : 'Theo Symbol' }}</option>
+                <option value="strategy">{{ locale === 'en' ? 'By Strategy' : 'Theo Chiến lược' }}</option>
+                <option value="session">{{ locale === 'en' ? 'By Session' : 'Theo Phiên' }}</option>
+                <option value="emotion">{{ locale === 'en' ? 'By Emotion' : 'Theo Cảm xúc' }}</option>
               </select>
             </div>
             <div class="tz-grouped-list">
               <div v-for="g in groupedAnalysis" :key="g.key" class="tz-group-row">
                 <div class="tz-group-info">
                   <strong>{{ g.key }}</strong>
-                  <span>{{ g.trades }} trades · {{ g.winRate.toFixed(1) }}% WR</span>
+                  <span>{{ g.trades }} {{ locale === 'en' ? 'trades' : 'lệnh' }} · {{ g.winRate.toFixed(1) }}% WR</span>
                 </div>
                 <div class="tz-group-bar-bg"><div class="tz-group-bar" :style="{ width: g.barWidth, background: g.pnl >= 0 ? 'var(--success)' : 'var(--danger)' }"></div></div>
                 <div class="tz-group-pnl" :class="g.pnl >= 0 ? 'success' : 'danger'">{{ money(g.pnl) }}</div>
@@ -147,40 +147,40 @@
           </article>
 
           <article class="tz-chart-card">
-            <div class="tz-chart-header"><div class="tz-chart-title">Chuỗi Lệnh & Hiệu suất nắm giữ</div></div>
+            <div class="tz-chart-header"><div class="tz-chart-title">{{ t('analytics.streaksHoldingTitle') }}</div></div>
             <div class="tz-streaks-wrap">
               <div class="tz-streaks-grid">
                 <div class="tz-streak-item success">
-                  <label>Chuỗi Thắng Max</label>
-                  <strong>{{ analysis.maxConsecutiveWins || 0 }} lệnh</strong>
+                  <label>{{ t('analytics.maxWins') }}</label>
+                  <strong>{{ analysis.maxConsecutiveWins || 0 }} {{ locale === 'en' ? 'trades' : 'lệnh' }}</strong>
                 </div>
                 <div class="tz-streak-item danger">
-                  <label>Chuỗi Thua Max</label>
-                  <strong>{{ analysis.maxConsecutiveLosses || 0 }} lệnh</strong>
+                  <label>{{ t('analytics.maxLosses') }}</label>
+                  <strong>{{ analysis.maxConsecutiveLosses || 0 }} {{ locale === 'en' ? 'trades' : 'lệnh' }}</strong>
                 </div>
               </div>
               
-              <div class="tz-holding-table-title">Hiệu suất theo thời gian nắm giữ</div>
+              <div class="tz-holding-table-title">{{ t('analytics.holdingPerformance') }}</div>
               <div class="tz-holding-list">
                 <div class="tz-holding-row">
-                  <span>Ngắn (&le;15m)</span>
-                  <span>{{ analysis.holdingTimePerformance?.short?.trades || 0 }} lệnh</span>
+                  <span>{{ t('analytics.shortHolding') }}</span>
+                  <span>{{ analysis.holdingTimePerformance?.short?.trades || 0 }} {{ locale === 'en' ? 'trades' : 'lệnh' }}</span>
                   <span>WR: {{ analysis.holdingTimePerformance?.short?.winRate || 0 }}%</span>
                   <span :class="(analysis.holdingTimePerformance?.short?.pnl || 0) >= 0 ? 'success' : 'danger'">
                     {{ money(analysis.holdingTimePerformance?.short?.pnl) }}
                   </span>
                 </div>
                 <div class="tz-holding-row">
-                  <span>Trung (15m-2h)</span>
-                  <span>{{ analysis.holdingTimePerformance?.medium?.trades || 0 }} lệnh</span>
+                  <span>{{ t('analytics.mediumHolding') }}</span>
+                  <span>{{ analysis.holdingTimePerformance?.medium?.trades || 0 }} {{ locale === 'en' ? 'trades' : 'lệnh' }}</span>
                   <span>WR: {{ analysis.holdingTimePerformance?.medium?.winRate || 0 }}%</span>
                   <span :class="(analysis.holdingTimePerformance?.medium?.pnl || 0) >= 0 ? 'success' : 'danger'">
                     {{ money(analysis.holdingTimePerformance?.medium?.pnl) }}
                   </span>
                 </div>
                 <div class="tz-holding-row">
-                  <span>Dài (&gt;2h)</span>
-                  <span>{{ analysis.holdingTimePerformance?.long?.trades || 0 }} lệnh</span>
+                  <span>{{ t('analytics.longHolding') }}</span>
+                  <span>{{ analysis.holdingTimePerformance?.long?.trades || 0 }} {{ locale === 'en' ? 'trades' : 'lệnh' }}</span>
                   <span>WR: {{ analysis.holdingTimePerformance?.long?.winRate || 0 }}%</span>
                   <span :class="(analysis.holdingTimePerformance?.long?.pnl || 0) >= 0 ? 'success' : 'danger'">
                     {{ money(analysis.holdingTimePerformance?.long?.pnl) }}
@@ -193,10 +193,10 @@
 
         <section v-if="deepMode" class="tz-deep-panel">
           <div class="tz-deep-controls">
-            <div class="tz-chart-title">Phân tích chi tiết từng lệnh giao dịch</div>
+            <div class="tz-chart-title">{{ t('analytics.executionDetails') }}</div>
             <label class="tz-search-bar">
               <span>⌕</span>
-              <input v-model="search" type="text" placeholder="Filter by symbol, strategy..." />
+              <input v-model="search" type="text" :placeholder="locale === 'en' ? 'Filter by symbol, strategy...' : 'Lọc theo symbol, chiến lược...'" />
             </label>
           </div>
           <div class="tz-deep-trades">
@@ -225,16 +225,16 @@
                 </div>
                 <div class="tz-deep-metrics">
                   <div class="tz-dm-item" :class="trade.executionScore >= 70 ? 'success' : trade.executionScore >= 40 ? 'warn' : 'danger'">
-                    Execution: {{ trade.executionScore }}/100
+                    {{ t('analytics.executionScore') }}: {{ trade.executionScore }}/100
                   </div>
                   <div v-if="!(trade.stopLoss || trade.sl)" class="tz-dm-item danger">
-                    Thiếu SL ⚠️
+                    {{ t('analytics.noSlBadge') }}
                   </div>
                   <div v-if="trade.slRemoved" class="tz-dm-item danger">
-                    Hủy/Dời SL ⚠️
+                    {{ t('analytics.slRemovedBadge') }}
                   </div>
                   <div v-if="trade.emotionTag === 'FOMO' || trade.emotionTag === 'Revenge'" class="tz-dm-item warn">
-                    Cảm xúc ({{ trade.emotionTag }}) 🧠
+                    {{ t('analytics.emotionalBadge', { emotion: trade.emotionTag }) }}
                   </div>
                   <div class="tz-dm-item" :class="num(trade.profit || trade.pnl) >= 0 ? 'success' : 'danger'">
                     MAE: {{ money(trade.mae) }}
@@ -246,7 +246,7 @@
                 <div v-if="trade.notes" class="tz-deep-notes">{{ trade.notes }}</div>
               </div>
             </article>
-            <p v-if="!filteredDeepTrades.length" class="tz-empty">Không có lệnh nào khớp bộ lọc.</p>
+            <p v-if="!filteredDeepTrades.length" class="tz-empty">{{ t('analytics.empty') }}</p>
           </div>
         </section>
       </main>
