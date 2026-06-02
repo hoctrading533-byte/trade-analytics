@@ -1,0 +1,229 @@
+:root,
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --lf-bg: #07070a;
+  --lf-bg-alt: #0b0b10;
+  --lf-bg-soft: #100b14;
+  --lf-card: #141018;
+  --lf-card-2: #18111d;
+  --lf-card-hover: #1b1321;
+  --lf-border: #2a142a;
+  --lf-border-soft: rgba(255, 77, 166, 0.14);
+  --lf-border-strong: rgba(255, 45, 154, 0.44);
+  --lf-primary: #ff2d9a;
+  --lf-primary-hot: #ff4da6;
+  --lf-primary-soft: rgba(255, 45, 154, 0.14);
+  --lf-primary-glow: rgba(255, 45, 154, 0.36);
+  --lf-text: #ffffff;
+  --lf-text-soft: #e9ddeb;
+  --lf-text-muted: #b8a8b8;
+  --lf-text-faint: rgba(184, 168, 184, 0.62);
+  --lf-success: #00d084;
+  --lf-danger: #ff3b7a;
+  --lf-warning: #ffc861;
+  --lf-cyan: #42d7ff;
+  --lf-purple: #9a4dff;
+  --lf-shadow: 0 18px 44px rgba(0, 0, 0, 0.36);
+  --lf-shadow-soft: 0 10px 26px rgba(0, 0, 0, 0.26);
+  --lf-shadow-hover: 0 0 28px rgba(255, 45, 154, 0.16), 0 18px 42px rgba(0, 0, 0, 0.4);
+  --lf-glow-card: 0 0 24px rgba(255, 45, 154, 0.12);
+  --lf-focus: 0 0 0 3px rgba(255, 45, 154, 0.18);
+
+  --lf-page-bg:
+    radial-gradient(860px 560px at 18% -8%, rgba(255, 45, 154, 0.18), transparent 66%),
+    radial-gradient(780px 500px at 96% 6%, rgba(154, 77, 255, 0.15), transparent 62%),
+    linear-gradient(180deg, #07070a 0%, #0b0b10 100%);
+  --lf-dashboard-bg:
+    radial-gradient(900px 580px at 10% -12%, rgba(255, 45, 154, 0.18), transparent 62%),
+    radial-gradient(780px 520px at 105% 12%, rgba(0, 208, 132, 0.1), transparent 66%),
+    linear-gradient(180deg, #07070a 0%, #0b0b10 100%);
+  --lf-sidebar-bg: linear-gradient(180deg, rgba(9, 8, 13, 0.97), rgba(7, 7, 10, 0.98));
+  --lf-header-bg: rgba(8, 8, 12, 0.9);
+  --lf-panel-bg: linear-gradient(160deg, rgba(20, 16, 24, 0.94), rgba(12, 11, 17, 0.93));
+  --lf-panel-plain: rgba(20, 16, 24, 0.92);
+  --lf-input-bg: rgba(255, 255, 255, 0.045);
+  --lf-input-bg-focus: rgba(255, 255, 255, 0.07);
+  --lf-table-head: rgba(255, 77, 166, 0.08);
+  --lf-table-row-hover: rgba(255, 45, 154, 0.07);
+  --lf-modal-bg: rgba(20, 16, 24, 0.98);
+  --lf-overlay: rgba(0, 0, 0, 0.72);
+  --lf-scroll-thumb: linear-gradient(180deg, rgba(255, 45, 154, 0.74), rgba(154, 77, 255, 0.64));
+  --lf-chart-grid: rgba(255, 255, 255, 0.075);
+  --lf-chart-text: rgba(233, 221, 235, 0.74);
+  --lf-chart-line: #ff2d9a;
+  --lf-chart-fill: rgba(255, 45, 154, 0.14);
+  --lf-up: var(--lf-success);
+  --lf-down: var(--lf-danger);
+
+  --app-bg: var(--lf-bg);
+  --app-bg-alt: var(--lf-bg-alt);
+  --surface: var(--lf-card);
+  --surface-2: var(--lf-card-2);
+  --surface-hover: var(--lf-card-hover);
+  --surface-glass: rgba(20, 16, 24, 0.8);
+  --surface-glass-strong: rgba(20, 16, 24, 0.94);
+  --text-strong: var(--lf-text);
+  --text-primary: var(--lf-text);
+  --text-secondary: var(--lf-text-muted);
+  --text-muted: var(--lf-text-faint);
+  --text-inverse: #07070a;
+  --primary: var(--lf-primary);
+  --primary-hot: var(--lf-primary-hot);
+  --primary-soft: var(--lf-primary-soft);
+  --primary-glow: var(--lf-primary-glow);
+  --primary-dim: var(--lf-primary-soft);
+  --success: var(--lf-success);
+  --danger: var(--lf-danger);
+  --warning: var(--lf-warning);
+  --cyan: var(--lf-cyan);
+  --purple: var(--lf-purple);
+  --border: var(--lf-border);
+  --border-light: var(--lf-border-soft);
+  --border-strong: var(--lf-border-strong);
+  --card: var(--lf-card);
+  --card2: var(--lf-card-2);
+  --hot: var(--lf-primary-hot);
+  --sub: var(--lf-text-muted);
+  --bg: var(--lf-bg);
+  --bg2: var(--lf-bg-alt);
+  --text: var(--lf-text);
+  --radius: 16px;
+  --sidebar-w: 220px;
+  --header-h: 64px;
+  --font-ui: 'Syne', 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --shadow-card: var(--lf-shadow);
+  --shadow-soft: var(--lf-shadow-soft);
+  --shadow-hover: var(--lf-shadow-hover);
+  --gradient-primary: linear-gradient(135deg, var(--lf-primary), var(--lf-primary-hot));
+  --gradient-accent: linear-gradient(135deg, var(--lf-primary), var(--lf-purple));
+  --gradient-card: var(--lf-panel-bg);
+
+  --bg-deep: var(--lf-bg);
+  --bg-card: var(--surface-glass);
+  --bg-card-hover: var(--surface-hover);
+  --pink: var(--lf-primary);
+  --pink-light: var(--lf-primary-hot);
+  --pink-glow: var(--lf-primary-glow);
+  --violet: var(--lf-purple);
+  --violet-light: #bc7cff;
+  --gold: var(--lf-warning);
+  --gold-glow: rgba(255, 200, 97, 0.34);
+  --green: var(--lf-success);
+  --red: var(--lf-danger);
+  --red-glow: rgba(255, 59, 122, 0.34);
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  --lf-bg: #fff7fb;
+  --lf-bg-alt: #ffffff;
+  --lf-bg-soft: #fff0f7;
+  --lf-card: #ffffff;
+  --lf-card-2: #fffafd;
+  --lf-card-hover: #fff1f8;
+  --lf-border: #f2d6e6;
+  --lf-border-soft: #f2d6e6;
+  --lf-border-strong: rgba(255, 59, 157, 0.38);
+  --lf-primary: #ff3b9d;
+  --lf-primary-hot: #ff5aae;
+  --lf-primary-soft: rgba(255, 59, 157, 0.1);
+  --lf-primary-glow: rgba(255, 59, 157, 0.14);
+  --lf-text: #17121a;
+  --lf-text-soft: #2d2430;
+  --lf-text-muted: #6f6472;
+  --lf-text-faint: rgba(111, 100, 114, 0.66);
+  --lf-success: #00a86b;
+  --lf-danger: #ff3366;
+  --lf-warning: #d58a00;
+  --lf-cyan: #078fb8;
+  --lf-purple: #7b4cff;
+  --lf-shadow: 0 16px 34px rgba(85, 44, 66, 0.1);
+  --lf-shadow-soft: 0 8px 22px rgba(85, 44, 66, 0.08);
+  --lf-shadow-hover: 0 18px 40px rgba(107, 50, 78, 0.13);
+  --lf-glow-card: 0 12px 26px rgba(255, 59, 157, 0.08);
+  --lf-focus: 0 0 0 3px rgba(255, 59, 157, 0.14);
+
+  --lf-page-bg:
+    radial-gradient(820px 520px at 12% -12%, rgba(255, 59, 157, 0.11), transparent 66%),
+    radial-gradient(760px 480px at 104% 2%, rgba(255, 177, 215, 0.18), transparent 62%),
+    linear-gradient(180deg, #fff7fb 0%, #ffffff 58%, #fff7fb 100%);
+  --lf-dashboard-bg:
+    radial-gradient(860px 540px at 8% -12%, rgba(255, 59, 157, 0.12), transparent 62%),
+    radial-gradient(760px 500px at 104% 10%, rgba(0, 168, 107, 0.07), transparent 66%),
+    linear-gradient(180deg, #fff7fb 0%, #ffffff 100%);
+  --lf-sidebar-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(255, 247, 251, 0.96));
+  --lf-header-bg: rgba(255, 255, 255, 0.9);
+  --lf-panel-bg: linear-gradient(160deg, rgba(255, 255, 255, 0.98), rgba(255, 250, 253, 0.96));
+  --lf-panel-plain: rgba(255, 255, 255, 0.98);
+  --lf-input-bg: #ffffff;
+  --lf-input-bg-focus: #fffafd;
+  --lf-table-head: #fff0f7;
+  --lf-table-row-hover: rgba(255, 59, 157, 0.06);
+  --lf-modal-bg: #ffffff;
+  --lf-overlay: rgba(23, 18, 26, 0.28);
+  --lf-scroll-thumb: linear-gradient(180deg, rgba(255, 59, 157, 0.72), rgba(255, 160, 207, 0.72));
+  --lf-chart-grid: rgba(111, 100, 114, 0.15);
+  --lf-chart-text: rgba(111, 100, 114, 0.82);
+  --lf-chart-line: #ff3b9d;
+  --lf-chart-fill: rgba(255, 59, 157, 0.12);
+  --lf-up: var(--lf-success);
+  --lf-down: var(--lf-danger);
+
+  --surface-glass: rgba(255, 255, 255, 0.84);
+  --surface-glass-strong: rgba(255, 255, 255, 0.96);
+  --text-inverse: #ffffff;
+  --violet-light: #9b72ff;
+  --gold-glow: rgba(213, 138, 0, 0.14);
+  --red-glow: rgba(255, 51, 102, 0.14);
+  --card: var(--lf-card);
+  --card2: var(--lf-card-2);
+  --hot: var(--lf-primary-hot);
+  --sub: var(--lf-text-muted);
+  --bg: var(--lf-bg);
+  --bg2: var(--lf-bg-alt);
+  --text: var(--lf-text);
+  --primary-dim: var(--lf-primary-soft);
+  --radius: 16px;
+}
+
+html {
+  background: var(--lf-bg);
+  font-family: var(--font-ui);
+}
+
+body {
+  background: var(--lf-bg);
+  color: var(--lf-text);
+}
+
+body::before {
+  background: var(--lf-page-bg) !important;
+}
+
+.diag {
+  opacity: 0.7;
+  background-image: repeating-linear-gradient(
+    45deg,
+    color-mix(in srgb, var(--lf-primary) 13%, transparent) 0,
+    color-mix(in srgb, var(--lf-primary) 13%, transparent) 1px,
+    transparent 1px,
+    transparent 62px
+  ) !important;
+}
+
+:root[data-theme='light'] .diag,
+:root[data-theme='light'] .particles {
+  opacity: 0.18;
+}
+
+* {
+  scrollbar-color: var(--lf-primary) transparent;
+}
+
+*::selection {
+  color: #ffffff;
+  background: var(--lf-primary);
+}

@@ -1,0 +1,293 @@
+.settings-page,
+.opp-page,
+.market-page,
+.server-connect-page,
+.lb-page,
+.nftx-page,
+.analysis-page,
+.breakdown-premium,
+.admin-page,
+.auth-page,
+.psych-page,
+.playbook-page,
+.backtesting-page,
+.replay-page,
+.mentor-page,
+.education-page {
+  background: var(--lf-page-bg) !important;
+  color: var(--lf-text) !important;
+}
+
+.settings-page .card,
+.settings-page .head,
+.opp-page .card,
+.market-page .card,
+.market-page .top-hero,
+.server-connect-page .sc-card,
+.server-connect-page .sc-panel,
+.lb-page .card,
+.nftx-page .nftx-card,
+.nftx-page .settings-card,
+.nftx-page .guide-card,
+.analysis-page .analysis-sidebar,
+.analysis-page .panel,
+.breakdown-premium .neon-card,
+.admin-page .admin-stat-card,
+.admin-page .admin-table-wrap,
+.admin-page .admin-guide,
+.admin-page .admin-learning-item,
+.auth-page .auth-card,
+.psych-page .psych-card,
+.modal,
+.global-modal,
+.quiz-modal {
+  border-color: var(--lf-border-soft) !important;
+  background: var(--lf-panel-bg) !important;
+  color: var(--lf-text) !important;
+  box-shadow: var(--lf-shadow-soft) !important;
+}
+
+.settings-page .card:hover,
+.opp-page .card:hover,
+.market-page .card:hover,
+.lb-page .card:hover,
+.nftx-page .nftx-card:hover,
+.analysis-page .panel:hover,
+.breakdown-premium .neon-card:hover {
+  border-color: var(--lf-border-strong) !important;
+  box-shadow: var(--lf-shadow-hover) !important;
+}
+
+.settings-page input,
+.settings-page select,
+.settings-page textarea,
+.opp-page input,
+.opp-page select,
+.opp-page textarea,
+.market-page input,
+.market-page select,
+.market-page textarea,
+.server-connect-page input,
+.server-connect-page select,
+.server-connect-page textarea,
+.admin-page input,
+.admin-page select,
+.admin-page textarea,
+.auth-page input,
+.auth-page select,
+.auth-page textarea,
+.psych-page input,
+.psych-page select,
+.psych-page textarea,
+.nftx-page input,
+.nftx-page select,
+.nftx-page textarea,
+.modal input,
+.modal select,
+.modal textarea {
+  border-color: var(--lf-border-soft) !important;
+  background: var(--lf-input-bg) !important;
+  color: var(--lf-text) !important;
+}
+
+.settings-page input:focus,
+.settings-page select:focus,
+.settings-page textarea:focus,
+.market-page input:focus,
+.market-page select:focus,
+.market-page textarea:focus,
+.server-connect-page input:focus,
+.server-connect-page select:focus,
+.server-connect-page textarea:focus,
+.admin-page input:focus,
+.admin-page select:focus,
+.admin-page textarea:focus,
+.auth-page input:focus,
+.auth-page select:focus,
+.auth-page textarea:focus,
+.nftx-page input:focus,
+.nftx-page select:focus,
+.nftx-page textarea:focus {
+  border-color: var(--lf-border-strong) !important;
+  box-shadow: var(--lf-focus) !important;
+  outline: none !important;
+}
+
+.settings-page .btn,
+.opp-page .btn,
+.market-page .btn,
+.server-connect-page .sc-btn,
+.lb-page .btn,
+.nftx-page .btn,
+.analysis-page .upgrade-btn,
+.analysis-page .icon-btn,
+.analysis-page .eye-btn,
+.breakdown-premium .chip-btn,
+.breakdown-premium .cta-btn,
+.admin-page .mini-btn,
+.auth-page .auth-btn,
+.psych-page .auth-btn,
+.modal-btn {
+  border-color: var(--lf-border-soft) !important;
+  background: var(--lf-input-bg) !important;
+  color: var(--lf-text) !important;
+}
+
+.settings-page .btn.primary,
+.opp-page .btn.primary,
+.market-page .btn.primary,
+.server-connect-page .sc-btn.primary,
+.nftx-page .btn.primary,
+.nftx-page .btn.verify,
+.breakdown-premium .cta-btn,
+.analysis-page .upgrade-btn,
+.analysis-page .upgrade-btn.active,
+.admin-page .mini-btn.active,
+.auth-page .auth-btn:not(.ghost),
+.psych-page .auth-btn,
+.modal-btn {
+  border-color: transparent !important;
+  background: var(--gradient-primary) !important;
+  color: #fff !important;
+  box-shadow: 0 0 18px var(--lf-primary-glow) !important;
+}
+
+.settings-page .kicker,
+.opp-page .kicker,
+.market-page .eyebrow,
+.market-page .badge,
+.analysis-page .panel-kicker,
+.breakdown-premium .card-label,
+.nftx-page .eyebrow,
+.lb-page .eyebrow {
+  color: var(--lf-primary-hot) !important;
+}
+
+.settings-page .sub,
+.settings-page .card-sub,
+.settings-page .meta span,
+.opp-page .sub,
+.opp-page .meta,
+.market-page .sub,
+.market-page .field span,
+.market-page .help,
+.server-connect-page .sc-header p,
+.server-connect-page .sc-label,
+.server-connect-page .sc-kv dt,
+.lb-page .sub,
+.nftx-page .sub,
+.analysis-page .muted,
+.analysis-page .table-foot,
+.breakdown-premium .muted,
+.admin-page .admin-sub,
+.auth-page .auth-sub,
+.psych-page .auth-sub {
+  color: var(--lf-text-muted) !important;
+}
+
+.settings-page .alert.danger,
+.opp-page .alert.danger,
+.market-page .alert.danger,
+.server-connect-page .sc-alert.danger,
+.admin-page .auth-error,
+.auth-page .auth-error,
+.psych-page .auth-error {
+  border-color: color-mix(in srgb, var(--lf-danger) 42%, transparent) !important;
+  background: color-mix(in srgb, var(--lf-danger) 12%, transparent) !important;
+  color: var(--lf-danger) !important;
+}
+
+.settings-page .alert.success,
+.market-page .alert.success,
+.server-connect-page .sc-alert.success,
+.auth-page .auth-success {
+  border-color: color-mix(in srgb, var(--lf-success) 38%, transparent) !important;
+  background: color-mix(in srgb, var(--lf-success) 10%, transparent) !important;
+  color: var(--lf-success) !important;
+}
+
+.good,
+.ok,
+.up,
+.pnl-positive,
+.server-connect-page .pill.on,
+.market-page .plan-pill.pro,
+.market-page .alert.success,
+.nftx-page .wallet-status.ok {
+  color: var(--lf-success) !important;
+}
+
+.bad,
+.down,
+.pnl-negative,
+.server-connect-page .sc-btn.danger,
+.nftx-page .wallet-status.bad {
+  color: var(--lf-danger) !important;
+}
+
+.warn,
+.market-page .plan-pill.upgrade {
+  color: var(--lf-warning) !important;
+}
+
+.analysis-page .table-shell,
+.analysis-page table,
+.breakdown-premium .table-wrap,
+.admin-page table,
+.lb-page .table-wrap,
+.market-page .order-card,
+.server-connect-page .sc-status,
+.nftx-page .info-row,
+.nftx-page .wallet-guide {
+  border-color: var(--lf-border-soft) !important;
+  background: var(--lf-panel-plain) !important;
+  color: var(--lf-text) !important;
+}
+
+.analysis-page th,
+.analysis-page .table-head,
+.breakdown-premium th,
+.admin-page th,
+.lb-page .table-head,
+.journal-table .table-head,
+.trade-table .trade-head {
+  background: var(--lf-table-head) !important;
+  color: var(--lf-text-muted) !important;
+}
+
+.analysis-page td,
+.breakdown-premium td,
+.admin-page td,
+.lb-page .table-row,
+.journal-table .table-row {
+  border-color: var(--lf-border-soft) !important;
+  color: var(--lf-text-soft) !important;
+}
+
+:root[data-theme='light'] .settings-page,
+:root[data-theme='light'] .opp-page,
+:root[data-theme='light'] .market-page,
+:root[data-theme='light'] .server-connect-page,
+:root[data-theme='light'] .lb-page,
+:root[data-theme='light'] .nftx-page,
+:root[data-theme='light'] .analysis-page,
+:root[data-theme='light'] .breakdown-premium,
+:root[data-theme='light'] .admin-page,
+:root[data-theme='light'] .auth-page,
+:root[data-theme='light'] .psych-page {
+  text-shadow: none !important;
+}
+
+:root[data-theme='light'] .settings-page *,
+:root[data-theme='light'] .opp-page *,
+:root[data-theme='light'] .market-page *,
+:root[data-theme='light'] .server-connect-page *,
+:root[data-theme='light'] .lb-page *,
+:root[data-theme='light'] .nftx-page *,
+:root[data-theme='light'] .analysis-page *,
+:root[data-theme='light'] .breakdown-premium *,
+:root[data-theme='light'] .admin-page *,
+:root[data-theme='light'] .auth-page *,
+:root[data-theme='light'] .psych-page * {
+  text-shadow: none !important;
+}

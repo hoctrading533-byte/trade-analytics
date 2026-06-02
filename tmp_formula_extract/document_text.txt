@@ -1,0 +1,82 @@
+﻿FULL TRADING BEHAVIOR ANALYSIS SYSTEM
+Há»† THá»NG PHÃ‚N TÃCH HÃ€NH VI GIAO Dá»ŠCH TOÃ€N DIá»†N
+1. DATA STRUCTURE
+1. Cáº¤U TRÃšC Dá»® LIá»†U
+Fields: TradeID, Entry, Exit, Lot, SL, TP, Profit, Time, Strategy, Emotion, NotesCÃ¡c trÆ°á»ng: MÃ£ giao dá»‹ch, Äiá»ƒm vÃ o, Äiá»ƒm ra, Khá»‘i lÆ°á»£ng, Dá»«ng lá»—, Chá»‘t lá»i, Lá»£i nhuáº­n, Thá»i gian, Chiáº¿n lÆ°á»£c, Cáº£m xÃºc, Ghi chÃº
+2. CORE METRICS
+2. CHá»ˆ Sá» Cá»T LÃ•I
+Win Rate = Wins / Total TradesTá»· lá»‡ tháº¯ng = Sá»‘ lá»‡nh tháº¯ng / Tá»•ng sá»‘ lá»‡nh
+Expectancy = (Win Rate Ã— Avg Win) âˆ’ (Loss Rate Ã— Avg Loss)Ká»³ vá»ng lá»£i nhuáº­n = (Tá»· lá»‡ tháº¯ng Ã— Lá»£i nhuáº­n trung bÃ¬nh) âˆ’ (Tá»· lá»‡ thua Ã— Má»©c lá»— trung bÃ¬nh)
+Risk Reward (RR) = Avg Win / Avg LossTá»· lá»‡ Rá»§i ro/Lá»£i nhuáº­n (RR) = Lá»£i nhuáº­n trung bÃ¬nh / Má»©c lá»— trung bÃ¬nh
+Drawdown = (Peak âˆ’ Lowest) / PeakMá»©c sá»¥t giáº£m vá»‘n = (Äá»‰nh vá»‘n âˆ’ Má»©c tháº¥p nháº¥t) / Äá»‰nh vá»‘n
+3. ADVANCED METRICS
+3. CHá»ˆ Sá» NÃ‚NG CAO
+Profit Factor = Total Profit / Total LossHá»‡ sá»‘ lá»£i nhuáº­n = Tá»•ng lá»£i nhuáº­n / Tá»•ng thua lá»—
+Average R = Avg Profit per tradeR trung bÃ¬nh = Lá»£i nhuáº­n trung bÃ¬nh má»—i giao dá»‹ch
+Max Consecutive LossesSá»‘ láº§n thua liÃªn tiáº¿p tá»‘i Ä‘a
+4. BEHAVIOR ANALYSIS
+4. PHÃ‚N TÃCH HÃ€NH VI
+Overtrading = Trades per day / baselineGiao dá»‹ch quÃ¡ má»©c = Sá»‘ lá»‡nh má»—i ngÃ y / má»©c chuáº©n
+FOMO = Trades outside plan / totalFOMO = Lá»‡nh ngoÃ i káº¿ hoáº¡ch / tá»•ng sá»‘ lá»‡nh
+Discipline = Trades following plan / totalKá»· luáº­t = Lá»‡nh theo Ä‘Ãºng káº¿ hoáº¡ch / tá»•ng sá»‘ lá»‡nh
+Revenge = Trades after loss within X minutesGiao dá»‹ch tráº£ thÃ¹ = Lá»‡nh má»Ÿ sau khi thua trong vÃ²ng X phÃºt
+5. STRATEGY ANALYSIS
+5. PHÃ‚N TÃCH CHIáº¾N LÆ¯á»¢C
+Group by strategy â†’ calculate Win rate, RR, ExpectancyNhÃ³m theo chiáº¿n lÆ°á»£c â†’ tÃ­nh tá»· lá»‡ tháº¯ng, RR, ká»³ vá»ng lá»£i nhuáº­n
+Find best performing strategyTÃ¬m chiáº¿n lÆ°á»£c hiá»‡u quáº£ nháº¥t
+6. TIME ANALYSIS
+6. PHÃ‚N TÃCH THá»œI GIAN
+Group by session: Asia, London, New YorkNhÃ³m theo phiÃªn: ChÃ¢u Ã, London, New York
+Find best trading timeTÃ¬m thá»i gian giao dá»‹ch hiá»‡u quáº£ nháº¥t
+7. EMOTION ANALYSIS
+7. PHÃ‚N TÃCH Cáº¢M XÃšC
+Map emotion â†’ resultGáº¯n cáº£m xÃºc â†’ káº¿t quáº£
+Example: FOMO â†’ -$500, Calm â†’ +$800VÃ­ dá»¥: FOMO â†’ -500$, BÃ¬nh tÄ©nh â†’ +800$
+8. DASHBOARD IDEAS
+8. Ã TÆ¯á»žNG Báº¢NG ÄIá»€U KHIá»‚N
+Equity CurveÄÆ°á»ng cong vá»‘n
+Drawdown chartBiá»ƒu Ä‘á»“ sá»¥t giáº£m vá»‘n
+Win/Loss pieBiá»ƒu Ä‘á»“ trÃ²n tháº¯ng/thua
+Behavior scoreÄiá»ƒm hÃ nh vi
+9. SYSTEM FLOW
+9. LUá»’NG Há»† THá»NG
+Import data â†’ Calculate metrics â†’ Group data â†’ Detect behavior â†’ Show dashboardNháº­p dá»¯ liá»‡u â†’ TÃ­nh toÃ¡n chá»‰ sá»‘ â†’ NhÃ³m dá»¯ liá»‡u â†’ PhÃ¡t hiá»‡n hÃ nh vi â†’ Hiá»ƒn thá»‹ báº£ng Ä‘iá»u khiá»ƒn
+10. CONCLUSION
+10. Káº¾T LUáº¬N
+Goal: turn raw data into insights â†’ improve trading performanceMá»¥c tiÃªu: biáº¿n dá»¯ liá»‡u thÃ´ thÃ nh thÃ´ng tin há»¯u Ã­ch â†’ cáº£i thiá»‡n hiá»‡u suáº¥t giao dá»‹ch
+========================================================
+Dá»¯ liá»‡u thÆ°á»ng tháº¥y trong lá»‹ch sá»­ giao dá»‹ch qua API
+Trade ID / Order ID: MÃ£ Ä‘á»‹nh danh duy nháº¥t cho má»—i lá»‡nh.
+Cáº·p giao dá»‹ch (Symbol/Pair): VÃ­ dá»¥ BTC/USDT, ETH/USDT.
+Loáº¡i lá»‡nh (Order type): Market, Limit, Stop-limitâ€¦
+HÆ°á»›ng lá»‡nh (Side): Buy (mua) hoáº·c Sell (bÃ¡n).
+GiÃ¡ vÃ o lá»‡nh (Entry price): GiÃ¡ mÃ  lá»‡nh Ä‘Æ°á»£c khá»›p.
+Khá»‘i lÆ°á»£ng (Quantity/Volume): Sá»‘ lÆ°á»£ng coin/token giao dá»‹ch.
+GiÃ¡ thoÃ¡t lá»‡nh (Exit/Close price): GiÃ¡ Ä‘Ã³ng lá»‡nh hoáº·c khá»›p lá»‡nh cuá»‘i cÃ¹ng.
+Thá»i gian (Timestamp): Thá»i Ä‘iá»ƒm lá»‡nh Ä‘Æ°á»£c má»Ÿ/Ä‘Ã³ng.
+Tráº¡ng thÃ¡i lá»‡nh (Status): Filled, Partially filled, Canceledâ€¦
+PhÃ­ giao dá»‹ch (Fee): PhÃ­ mÃ  sÃ n thu cho giao dá»‹ch Ä‘Ã³.
+Lá»£i nhuáº­n/thua lá»— (PnL): Náº¿u sÃ n há»— trá»£ tÃ­nh toÃ¡n, báº¡n cÃ³ thá»ƒ tháº¥y káº¿t quáº£ lá»i/lá»—.
+========================================================
+ðŸ“Š Bá»™ chá»‰ sá»‘ phÃ¢n tÃ­ch tÃ¢m lÃ½ giao dá»‹ch
+1.Overtrading (Giao dá»‹ch quÃ¡ má»©c)
+2. FOMO (Fear of Missing Out)
+3. Revenge Trading (Giao dá»‹ch tráº£ thÃ¹)
+4. Discipline (Ká»· luáº­t)
+5. Risk Management (Quáº£n lÃ½ rá»§i ro)
+Chá»‰ sá»‘:
+% lá»‡nh cÃ³ Stop Loss.
+Tá»· lá»‡ Risk/Reward trung bÃ¬nh.
+Ã nghÄ©a: KhÃ´ng Ä‘áº·t SL hoáº·c RR &lt; 1 â†’ tÃ¢m lÃ½ chá»§ quan, hy vá»ng quÃ¡ má»©c.
+NgÆ°á»¡ng cáº£nh bÃ¡o: 
+6. Emotional Pattern (Máº«u cáº£m xÃºc qua chuá»—i lá»‡nh)
+Chuá»—i tháº¯ng liÃªn tiáº¿p: Náº¿u khá»‘i lÆ°á»£ng tÄƒng máº¡nh sau chuá»—i tháº¯ng â†’ tá»± tin thÃ¡i quÃ¡.
+Chuá»—i thua liÃªn tiáº¿p: Náº¿u khá»‘i lÆ°á»£ng tÄƒng báº¥t thÆ°á»ng sau chuá»—i thua â†’ tÃ¢m lÃ½ gá»¡ gáº¡c.
+7. Behavior Score (Äiá»ƒm hÃ nh vi tá»•ng há»£p)
+8. Dashboard hiá»ƒn thá»‹
+Equity Curve: ÄÆ°á»ng cong vá»‘n.
+Win/Loss Pie: Biá»ƒu Ä‘á»“ tháº¯ng/thua.
+Behavior Score Gauge: Äá»“ng há»“ Ä‘o Ä‘iá»ƒm hÃ nh vi.
+Drawdown Chart: Biá»ƒu Ä‘á»“ sá»¥t giáº£m vá»‘n.
+Emotion Map: Báº£n Ä‘á»“ cáº£m xÃºc (FOMO, Revenge, Calmâ€¦).
+ðŸ‘‰ Vá»›i bá»™ chá»‰ sá»‘ nÃ y, báº¡n cÃ³ thá»ƒ xÃ¢y dá»±ng sáº£n pháº©m phÃ¢n tÃ­ch tÃ¢m lÃ½ trader: nháº­p dá»¯ liá»‡u tá»« API â†’ tÃ­nh toÃ¡n cÃ¡c chá»‰ sá»‘ â†’ hiá»ƒn thá»‹ dashboard â†’ Ä‘Æ°a ra cáº£nh bÃ¡o vÃ  gá»£i Ã½ cáº£i thiá»‡n.
