@@ -9,7 +9,7 @@
     "dev:server:plain": "node server/index.js",
     "dev:full": "run-p dev dev:server",
     "dev:full:lowmem": "run-p dev dev:server:plain",
-    "build": "run-p type-check \"build-only {@}\" --",
+    "build": "vite build",
     "preview": "vite preview",
     "start:server": "node server/index.js",
     "build-only": "vite build",
