@@ -42,6 +42,6 @@ __screenshots__/
 server/data/*.json
 
 # Python Virtual Environment
-Lib/
+venv/
 Scripts/
 pyvenv.cfg
