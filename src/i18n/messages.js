@@ -62,6 +62,7 @@ export const messages = {
       submitRegister: 'Đăng ký & gửi OTP',
       submitting: 'Đang gửi...',
       verifyAndContinue: 'Xác minh và tiếp tục',
+      registerGoogle: 'Đăng ký với Google',
       forgotTitle: 'Quên mật khẩu',
       forgotSub: 'Nhận OTP và đặt mật khẩu mới.',
       sendOtpDone: 'OTP đã được gửi nếu email tồn tại.',
@@ -405,6 +406,22 @@ export const messages = {
       noSlBadge: 'Thiếu SL ⚠️',
       slRemovedBadge: 'Hủy/Dời SL ⚠️',
       emotionalBadge: 'Cảm xúc ({emotion}) 🧠'
+    },
+    propEval: {
+      dashboardTitle: 'Quản lý thi quỹ',
+      remainingDailyLoss: 'Daily Loss còn lại',
+      remainingMaxDrawdown: 'Max Drawdown còn lại',
+      profitTarget: 'Mục tiêu lợi nhuận',
+      passForecast: 'Tỷ lệ đậu dự kiến',
+      equityCurve: 'Biểu đồ vốn & Drawdown',
+      behavioralWarnings: 'Cảnh báo hành vi khẩn cấp',
+      warningRevengeTitle: 'Revenge Trading (Trực chờ gỡ lỗ)',
+      warningRevengeDesc: 'Hệ thống phát hiện {count} lần bạn vào lệnh quá nhanh (dưới 15 phút) sau khi bị lỗ. Hãy dừng lại và lấy lại bình tĩnh.',
+      warningTimeTitle: 'Giờ giao dịch rủi ro',
+      warningTimeDesc: 'Khung {hour} là lúc bạn hay bị thua nhất ({losses} lệnh thua). Cẩn thận khi giao dịch vào lúc này.',
+      warningMistakeTitle: 'Lỗi lặp lại nhiều nhất',
+      warningMistakeDesc: 'Lỗi "{mistake}" đã khiến bạn mất tiền {count} lần. Hãy nghiêm ngặt bám sát quy tắc.',
+      noWarnings: 'Hiện tại bạn đang giao dịch rất kỷ luật. Tiếp tục phát huy nhé!'
     }
   },
   en: {
@@ -470,6 +487,7 @@ export const messages = {
       submitRegister: 'Register & Send OTP',
       submitting: 'Submitting...',
       verifyAndContinue: 'Verify and Continue',
+      registerGoogle: 'Register with Google',
       forgotTitle: 'Forgot Password',
       forgotSub: 'Receive OTP and set a new password.',
       sendOtpDone: 'OTP has been sent if the email exists.',
@@ -813,6 +831,22 @@ export const messages = {
       noSlBadge: 'Missing SL ⚠️',
       slRemovedBadge: 'SL Removed ⚠️',
       emotionalBadge: 'Emotional ({emotion}) 🧠'
+    },
+    propEval: {
+      dashboardTitle: 'Prop Evaluation Management',
+      remainingDailyLoss: 'Remaining Daily Loss',
+      remainingMaxDrawdown: 'Remaining Max Drawdown',
+      profitTarget: 'Profit Target',
+      passForecast: 'Pass Rate Forecast',
+      equityCurve: 'Equity Curve & Drawdown',
+      behavioralWarnings: 'Critical Behavioral Warnings',
+      warningRevengeTitle: 'Revenge Trading Detected',
+      warningRevengeDesc: 'The system detected {count} instances of entering trades too quickly (<15m) after a loss. Please step back and calm down.',
+      warningTimeTitle: 'Risky Trading Hour',
+      warningTimeDesc: 'The {hour} window is your worst performing time ({losses} losses). Be extra cautious now.',
+      warningMistakeTitle: 'Most Frequent Mistake',
+      warningMistakeDesc: 'The mistake "{mistake}" has cost you money {count} times. Stick strictly to your rules.',
+      noWarnings: 'You are trading very disciplined right now. Keep it up!'
     }
   }
 }

@@ -11,6 +11,7 @@ import { spawn } from 'node:child_process'
 import { createServer } from 'node:http'
 import { WebSocketServer } from 'ws'
 import pg from 'pg'
+import { calculatePropMetrics, analyzeBehavior } from './services/propAnalytics.js'
 
 const { Pool } = pg
 
@@ -3129,6 +3130,189 @@ function getMt5AgentStatus(userId) {
   }
 }
 
+// ═══════════════════════════════════════════════════════
+// Multi-Account MT5 Helpers
+// ═══════════════════════════════════════════════════════
+
+function sanitizeMt5AccountRow(row) {
+  if (!row) return null
+  return {
+    id: Number(row.id),
+    loginId: maskSecret(row.mt5_login),
+    loginRaw: row.mt5_login,
+    server: row.mt5_server,
+    terminalPath: row.mt5_terminal_path || '',
+    accountName: row.account_name || '',
+    accountType: row.account_type || 'prop',
+    initialBalance: Number(row.initial_balance || 0),
+    isActive: Boolean(row.is_active),
+    lastSyncAt: row.last_sync_at || null,
+    lastSyncStatus: row.last_sync_status || 'pending',
+    lastSyncError: row.last_sync_error || '',
+    syncDays: Number(row.sync_days || 365),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  }
+}
+
+function sanitizeMt5AccountPublic(row) {
+  const base = sanitizeMt5AccountRow(row)
+  if (!base) return null
+  delete base.loginRaw
+  return base
+}
+
+async function collectAndCacheAccountSnapshot({ accountId, userId, login, password, server, days = 365, terminalPath = '' }) {
+  const snapshot = await runMt5Collector({ login, password, server, days, terminalPath })
+  // Update account balance from snapshot
+  const balance = Number(snapshot?.account?.balance || 0)
+  const equity = Number(snapshot?.account?.equity || 0)
+  await pool.query(
+    `INSERT INTO user_mt5_account_cache (mt5_account_id, user_id, data_json, updated_at)
+     VALUES ($1, $2, $3::jsonb, NOW())
+     ON CONFLICT (mt5_account_id)
+     DO UPDATE SET data_json = EXCLUDED.data_json, user_id = EXCLUDED.user_id, updated_at = NOW()`,
+    [accountId, userId, JSON.stringify(snapshot)]
+  )
+  await pool.query(
+    `UPDATE user_mt5_accounts SET last_sync_at = NOW(), last_sync_status = 'ok', last_sync_error = '', updated_at = NOW() WHERE id = $1`,
+    [accountId]
+  )
+  // Also update legacy single-account cache for backward compatibility
+  const mergedData = await getMergedMt5Data(userId)
+  if (mergedData) {
+    await pool.query(
+      `INSERT INTO user_mt5_data_cache (user_id, data_json, updated_at)
+       VALUES ($1, $2::jsonb, NOW())
+       ON CONFLICT (user_id)
+       DO UPDATE SET data_json = EXCLUDED.data_json, updated_at = NOW()`,
+      [userId, JSON.stringify(mergedData)]
+    )
+  }
+  const tradeBook = buildTradeBook(snapshot)
+  const analysis = buildTradeBehaviorAnalysis(tradeBook.trades, snapshot.account || {})
+  await queueBehaviorProofs({ userId, analysis }).catch(() => {})
+  
+  // Calculate and persist the 6 Daily Quantitative Scores
+  const { calculateAndSaveDailyScores } = require('./services/scoringService.cjs')
+  await calculateAndSaveDailyScores(pool, userId, accountId, tradeBook.trades, balance).catch(err => console.error('[ScoringService]', err))
+  
+  return { snapshot, analysis, tradeBook, balance, equity }
+}
+
+async function getMergedMt5Data(userId) {
+  const cacheRes = await pool.query(
+    `SELECT c.data_json, c.updated_at, a.mt5_login, a.mt5_server, a.account_name, a.account_type, a.initial_balance, a.id AS account_id
+     FROM user_mt5_account_cache c
+     JOIN user_mt5_accounts a ON a.id = c.mt5_account_id
+     WHERE c.user_id = $1 AND a.is_active = true
+     ORDER BY c.updated_at DESC`,
+    [userId]
+  )
+  if (!cacheRes.rows.length) return null
+
+  // Merge all account data
+  const allDeals = []
+  const allOrders = []
+  const allPositions = []
+  const allPendingOrders = []
+  const accountsSummary = []
+  let latestUpdatedAt = null
+
+  for (const row of cacheRes.rows) {
+    const data = row.data_json || {}
+    if (Array.isArray(data.historyDeals)) allDeals.push(...data.historyDeals)
+    if (Array.isArray(data.historyOrders)) allOrders.push(...data.historyOrders)
+    if (Array.isArray(data.openPositions)) allPositions.push(...data.openPositions)
+    if (Array.isArray(data.pendingOrders)) allPendingOrders.push(...data.pendingOrders)
+    const updatedAtMs = row.updated_at ? new Date(row.updated_at).getTime() : 0
+    if (!latestUpdatedAt || updatedAtMs > new Date(latestUpdatedAt).getTime()) {
+      latestUpdatedAt = row.updated_at
+    }
+    accountsSummary.push({
+      accountId: Number(row.account_id),
+      login: row.mt5_login,
+      server: row.mt5_server,
+      accountName: row.account_name,
+      accountType: row.account_type,
+      initialBalance: Number(row.initial_balance || 0),
+      account: data.account || {},
+      summary: data.summary || {},
+      updatedAt: row.updated_at
+    })
+  }
+
+  // Use first (most recent) account as primary
+  const primaryData = cacheRes.rows[0].data_json || {}
+  return {
+    source: 'mt5-multi-account-merged',
+    fetchedAt: latestUpdatedAt || new Date().toISOString(),
+    account: primaryData.account || {},
+    openPositions: allPositions,
+    pendingOrders: allPendingOrders,
+    historyDeals: allDeals,
+    historyOrders: allOrders,
+    accounts: accountsSummary,
+    summary: primaryData.summary || {}
+  }
+}
+
+async function runMultiAccountAutoSync() {
+  if (!MT5_AUTO_SYNC_ENABLED) return
+  if (mt5AutoSyncRunning) return
+  mt5AutoSyncRunning = true
+  try {
+    const now = Date.now()
+    const result = await pool.query(
+      `SELECT a.id, a.user_id, a.mt5_login, a.mt5_password, a.mt5_server, a.mt5_terminal_path, a.sync_days,
+              c.updated_at AS cache_updated_at
+       FROM user_mt5_accounts a
+       JOIN users u ON u.id = a.user_id
+       LEFT JOIN user_mt5_account_cache c ON c.mt5_account_id = a.id
+       WHERE a.is_active = true AND u.status = 'active'
+       ORDER BY c.updated_at ASC NULLS FIRST
+       LIMIT $1`,
+      [MT5_AUTO_SYNC_MAX_USERS]
+    )
+
+    const candidates = result.rows.filter((row) => {
+      const key = `${row.user_id}:${row.id}`
+      if (mt5AutoSyncInFlight.has(key)) return false
+      const updatedAt = row.cache_updated_at ? new Date(row.cache_updated_at).getTime() : 0
+      if (!updatedAt || Number.isNaN(updatedAt)) return true
+      return now - updatedAt >= MT5_AUTO_SYNC_STALE_MS
+    })
+
+    // Sync sequentially (MT5 terminal supports only 1 connection at a time)
+    for (const row of candidates) {
+      const key = `${row.user_id}:${row.id}`
+      mt5AutoSyncInFlight.add(key)
+      try {
+        const password = decryptMt5Password(row.mt5_password)
+        await collectAndCacheAccountSnapshot({
+          accountId: Number(row.id),
+          userId: String(row.user_id),
+          login: row.mt5_login,
+          password,
+          server: row.mt5_server,
+          days: row.sync_days || MT5_AUTO_SYNC_DAYS,
+          terminalPath: row.mt5_terminal_path || ''
+        })
+      } catch (error) {
+        console.error(`[mt5-multi-sync][${row.user_id}:${row.id}]`, error.message || error)
+        await pool.query(
+          `UPDATE user_mt5_accounts SET last_sync_status = 'error', last_sync_error = $1, updated_at = NOW() WHERE id = $2`,
+          [String(error.message || 'Unknown error').slice(0, 500), row.id]
+        ).catch(() => {})
+      } finally {
+        mt5AutoSyncInFlight.delete(key)
+      }
+    }
+  } finally {
+    mt5AutoSyncRunning = false
+  }
+}
+
 function computeLevelProgress(xpRaw) {
   const xp = Math.max(0, Number(xpRaw || 0))
   const MAX_LEVEL = 30
@@ -3735,6 +3919,44 @@ async function initDatabase() {
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `)
+
+  // --- Multi-account MT5 tables ---
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS user_mt5_accounts (
+      id BIGSERIAL PRIMARY KEY,
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      mt5_login TEXT NOT NULL,
+      mt5_password TEXT NOT NULL,
+      mt5_server TEXT NOT NULL,
+      mt5_terminal_path TEXT NOT NULL DEFAULT '',
+      account_name TEXT NOT NULL DEFAULT '',
+      account_type TEXT NOT NULL DEFAULT 'prop',
+      initial_balance NUMERIC(18,2) NOT NULL DEFAULT 0,
+      is_active BOOLEAN NOT NULL DEFAULT true,
+      last_sync_at TIMESTAMPTZ,
+      last_sync_status TEXT NOT NULL DEFAULT 'pending',
+      last_sync_error TEXT NOT NULL DEFAULT '',
+      sync_days INTEGER NOT NULL DEFAULT 365,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE (user_id, mt5_login, mt5_server)
+    )
+  `)
+  await pool.query(
+    `CREATE INDEX IF NOT EXISTS idx_mt5_accounts_user_active ON user_mt5_accounts (user_id, is_active, updated_at DESC)`
+  )
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS user_mt5_account_cache (
+      mt5_account_id BIGINT PRIMARY KEY REFERENCES user_mt5_accounts(id) ON DELETE CASCADE,
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      data_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await pool.query(
+    `CREATE INDEX IF NOT EXISTS idx_mt5_account_cache_user ON user_mt5_account_cache (user_id, updated_at DESC)`
+  )
+
   await pool.query(`
     CREATE TABLE IF NOT EXISTS user_trade_checklists (
       id BIGSERIAL PRIMARY KEY,
@@ -3951,12 +4173,16 @@ async function initDatabase() {
       leverage NUMERIC(18,2) NOT NULL DEFAULT 0,
       account_type TEXT NOT NULL DEFAULT 'prop',
       status TEXT NOT NULL DEFAULT 'active',
+      rules_config JSONB NOT NULL DEFAULT '{}'::jsonb,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `)
   await pool.query(
     `CREATE INDEX IF NOT EXISTS idx_trading_accounts_user_status ON trading_accounts (user_id, status, updated_at DESC)`
+  )
+  await pool.query(
+    `ALTER TABLE trading_accounts ADD COLUMN IF NOT EXISTS rules_config JSONB NOT NULL DEFAULT '{}'::jsonb`
   )
   await pool.query(`
     CREATE TABLE IF NOT EXISTS prop_challenges (
@@ -4560,26 +4786,40 @@ app.get('/api/auth/google/callback', async (req, res) => {
 
     let row
     if (existing) {
-      const result = await pool.query(
-        `UPDATE users
-         SET provider = COALESCE(provider, 'google'),
-             email_verified = true,
-             role = $1,
-             last_login_at = NOW()
-         WHERE email = $2
-         RETURNING *`,
-        [role, email]
-      )
-      row = result.rows[0]
+      if (!existing.emailVerified) {
+        if (ensureMailer(res)) {
+          const code = createOtp(email, 'register')
+          await sendOtpEmail(email, code, 'register')
+        }
+        const redirectUrl = `${FRONTEND_URL}/auth/callback?email=${encodeURIComponent(email)}&requires_otp=true`
+        return res.redirect(302, redirectUrl)
+      } else {
+        const result = await pool.query(
+          `UPDATE users
+           SET provider = COALESCE(provider, 'google'),
+               role = $1,
+               last_login_at = NOW()
+           WHERE email = $2
+           RETURNING *`,
+          [role, email]
+        )
+        row = result.rows[0]
+      }
     } else {
-      const result = await pool.query(
+      await pool.query(
         `INSERT INTO users
           (id, name, email, phone, password_hash, role, provider, status, email_verified, last_login_at)
-         VALUES ($1, $2, $3, '', NULL, $4, 'google', 'active', true, NOW())
+         VALUES ($1, $2, $3, '', NULL, $4, 'google', 'active', false, NOW())
          RETURNING *`,
         [crypto.randomUUID(), infoJson.name || email.split('@')[0], email, role]
       )
-      row = result.rows[0]
+      
+      if (ensureMailer(res)) {
+        const code = createOtp(email, 'register')
+        await sendOtpEmail(email, code, 'register')
+      }
+      const redirectUrl = `${FRONTEND_URL}/auth/callback?email=${encodeURIComponent(email)}&requires_otp=true`
+      return res.redirect(302, redirectUrl)
     }
 
     const user = mapUser(row)
@@ -4951,6 +5191,275 @@ app.post('/api/trading/exness/push', connectorOrAuthRequired, async (req, res) =
   return res.json({ ok: true })
 })
 
+// ═══════════════════════════════════════════════════════
+// Multi-Account MT5 API Endpoints
+// ═══════════════════════════════════════════════════════
+
+app.get('/api/mt5/accounts', authRequired, async (req, res) => {
+  try {
+    const userId = req.auth.sub
+    const result = await pool.query(
+      `SELECT a.*, c.updated_at AS cache_updated_at, c.data_json->'account' AS cached_account_json
+       FROM user_mt5_accounts a
+       LEFT JOIN user_mt5_account_cache c ON c.mt5_account_id = a.id
+       WHERE a.user_id = $1 ORDER BY a.created_at ASC`,
+      [userId]
+    )
+    const accounts = result.rows.map((row) => {
+      const base = sanitizeMt5AccountPublic(row)
+      try {
+        const ca = row.cached_account_json || null
+        if (ca && typeof ca === 'object') {
+          base.currentBalance = Number(ca.balance || base.initialBalance)
+          base.currentEquity = Number(ca.equity || base.currentBalance)
+          base.profit = Number(ca.profit || 0)
+          base.leverage = Number(ca.leverage || 0)
+          base.currency = ca.currency || 'USD'
+          base.company = ca.company || ''
+          base.brokerName = ca.company || 'MetaQuotes'
+        } else {
+          base.currentBalance = base.initialBalance; base.currentEquity = base.initialBalance
+          base.profit = 0; base.leverage = 0; base.currency = 'USD'; base.company = ''; base.brokerName = 'MetaQuotes'
+        }
+      } catch { base.currentBalance = base.initialBalance; base.currentEquity = base.initialBalance }
+      base.cacheUpdatedAt = row.cache_updated_at || null
+      return base
+    })
+    return res.json({ accounts })
+  } catch (error) {
+    console.error('GET /api/mt5/accounts error:', error)
+    return res.status(500).json({ message: 'Internal server error', error: error.message })
+  }
+})
+
+app.get('/api/journal/data/:accountId', authRequired, async (req, res) => {
+  try {
+    const userId = req.auth.sub
+    const accountId = Number(req.params.accountId)
+    if (!accountId) return res.status(400).json({ message: 'Invalid account ID' })
+
+    const result = await pool.query(
+      `SELECT c.data_json
+       FROM user_mt5_accounts a
+       JOIN user_mt5_account_cache c ON c.mt5_account_id = a.id
+       WHERE a.id = $1 AND a.user_id = $2`,
+      [accountId, userId]
+    )
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'No MT5 data found for this account. Ensure it is connected and synced.' })
+    }
+
+    const dataJson = result.rows[0].data_json || {}
+    const rawTrades = dataJson.historyDeals || []
+    const accountInfo = dataJson.account || {}
+
+    // Group trades by date to build the daily stats
+    const tradesByDate = {}
+    for (const trade of rawTrades) {
+      let exitTimeStr = trade.exitTime || trade.closeTime || trade.close_time || trade.timeline
+      if (!exitTimeStr && trade.time) {
+        exitTimeStr = new Date(trade.time * 1000).toISOString()
+      }
+      if (!exitTimeStr) continue
+      // Keep local date for daily journal grouping
+      const dateStr = exitTimeStr.slice(0, 10) 
+      if (!tradesByDate[dateStr]) {
+        tradesByDate[dateStr] = {
+          date: dateStr,
+          trades: [],
+          netProfit: 0,
+          grossProfit: 0,
+          grossLoss: 0,
+          totalTrades: 0,
+          winners: 0,
+          losers: 0,
+          commission: 0,
+          volume: 0,
+          profitFactor: 0,
+          winRate: 0
+        }
+      }
+      
+      const stat = tradesByDate[dateStr]
+      stat.trades.push(trade)
+      stat.totalTrades++
+      stat.volume += Number(trade.volume || 0)
+      stat.commission += Number(trade.commission || 0)
+      
+      const pnl = Number(trade.netProfit || trade.profit || 0)
+      stat.netProfit += pnl
+      
+      if (pnl >= 0) {
+        stat.winners++
+        stat.grossProfit += pnl
+      } else {
+        stat.losers++
+        stat.grossLoss += Math.abs(pnl)
+      }
+    }
+
+    const dailyStats = Object.values(tradesByDate).map(stat => {
+      stat.winRate = stat.totalTrades > 0 ? (stat.winners / stat.totalTrades) * 100 : 0
+      stat.profitFactor = stat.grossLoss > 0 ? (stat.grossProfit / stat.grossLoss) : (stat.grossProfit > 0 ? 999 : 0)
+      
+      // rounding
+      stat.netProfit = Number(stat.netProfit.toFixed(2))
+      stat.grossProfit = Number(stat.grossProfit.toFixed(2))
+      stat.grossLoss = Number(stat.grossLoss.toFixed(2))
+      stat.commission = Number(stat.commission.toFixed(2))
+      stat.volume = Number(stat.volume.toFixed(2))
+      stat.profitFactor = Number(stat.profitFactor.toFixed(2))
+      stat.winRate = Number(stat.winRate.toFixed(2))
+      
+      // Sort trades inside day (newest first)
+      stat.trades.sort((a, b) => {
+        const tA = new Date(a.exitTime || a.closeTime || a.close_time || a.timeline || (a.time ? a.time * 1000 : 0)).getTime()
+        const tB = new Date(b.exitTime || b.closeTime || b.close_time || b.timeline || (b.time ? b.time * 1000 : 0)).getTime()
+        return tB - tA
+      })
+      return stat
+    })
+
+    // Sort days descending (newest first)
+    dailyStats.sort((a, b) => b.date.localeCompare(a.date))
+
+    return res.json({
+      accountId,
+      dailyStats,
+      totalTradesFound: rawTrades.length,
+      accountSnapshot: { account: accountInfo },
+      rawTrades: rawTrades
+    })
+
+  } catch (error) {
+    console.error('GET /api/journal/data/:accountId error:', error)
+    return res.status(500).json({ message: 'Internal server error', error: error.message })
+  }
+})
+
+
+app.post('/api/mt5/accounts', authRequired, async (req, res) => {
+  const userId = req.auth.sub
+  const login = String(req.body?.login || '').trim()
+  const password = String(req.body?.password || '').trim()
+  const server = String(req.body?.server || '').trim()
+  const terminalPath = String(req.body?.terminalPath || '').trim()
+  const accountName = String(req.body?.accountName || '').trim()
+  const accountType = ['demo', 'live', 'prop'].includes(req.body?.accountType) ? req.body.accountType : 'prop'
+  const initialBalance = Math.max(0, Number(req.body?.initialBalance || 0))
+  const days = Math.max(1, Math.min(365, Number(req.body?.days || 365)))
+  if (!login || !password || !server) return res.status(400).json({ message: 'MT5 login, password, server are required.' })
+  if (!accountName) return res.status(400).json({ message: 'Account name/label is required.' })
+
+  const existsRes = await pool.query(
+    `SELECT id FROM user_mt5_accounts WHERE user_id = $1 AND mt5_login = $2 AND mt5_server = $3`, [userId, login, server]
+  )
+  if (existsRes.rows.length > 0) return res.status(409).json({ message: 'This MT5 account is already connected.' })
+
+  const encPass = encryptMt5Password(password)
+  const insertRes = await pool.query(
+    `INSERT INTO user_mt5_accounts (user_id, mt5_login, mt5_password, mt5_server, mt5_terminal_path, account_name, account_type, initial_balance, sync_days, is_active)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, true) RETURNING *`,
+    [userId, login, encPass, server, terminalPath, accountName, accountType, initialBalance, days]
+  )
+  const newAcc = insertRes.rows[0]
+  const accId = Number(newAcc.id)
+
+  await pool.query(
+    `INSERT INTO user_mt5_connections (user_id, mt5_login, mt5_password, mt5_server, mt5_terminal_path, is_active, updated_at)
+     VALUES ($1, $2, $3, $4, $5, true, NOW()) ON CONFLICT (user_id)
+     DO UPDATE SET mt5_login = EXCLUDED.mt5_login, mt5_password = EXCLUDED.mt5_password, mt5_server = EXCLUDED.mt5_server, mt5_terminal_path = EXCLUDED.mt5_terminal_path, is_active = true, updated_at = NOW()`,
+    [userId, login, encPass, server, terminalPath]
+  )
+
+  try {
+    const { snapshot, analysis, tradeBook, balance, equity } = await collectAndCacheAccountSnapshot({ accountId: accId, userId, login, password, server, days, terminalPath })
+    const pub = sanitizeMt5AccountPublic(newAcc)
+    pub.currentBalance = balance; pub.currentEquity = equity
+    pub.currency = snapshot?.account?.currency || 'USD'; pub.company = snapshot?.account?.company || ''
+    pub.brokerName = snapshot?.account?.company || 'MetaQuotes'; pub.profit = Number(snapshot?.account?.profit || 0)
+    pub.leverage = Number(snapshot?.account?.leverage || 0); pub.lastSyncAt = new Date().toISOString(); pub.lastSyncStatus = 'ok'
+    triggerAutoMt5SyncSoon(100)
+    return res.json({ ok: true, synced: true, account: pub, snapshot, analysis, tradeBook, totalDeals: snapshot?.historyDeals?.length || 0, totalPositions: snapshot?.openPositions?.length || 0 })
+  } catch (syncErr) {
+    const pub = sanitizeMt5AccountPublic(newAcc)
+    pub.currentBalance = initialBalance; pub.currentEquity = initialBalance; pub.lastSyncStatus = 'error'; pub.lastSyncError = syncErr.message || 'Sync failed'
+    await pool.query(`UPDATE user_mt5_accounts SET last_sync_status = 'error', last_sync_error = $1, updated_at = NOW() WHERE id = $2`, [String(syncErr.message || '').slice(0, 500), accId])
+    return res.json({ ok: true, synced: false, syncError: syncErr.message || 'Connected but cannot sync MT5 data right now.', account: pub, message: 'MT5 account saved. Data sync will retry automatically.' })
+  }
+})
+
+app.delete('/api/mt5/accounts/:id', authRequired, async (req, res) => {
+  const userId = req.auth.sub
+  const accountId = Number(req.params.id)
+  if (!accountId) return res.status(400).json({ message: 'Invalid account ID.' })
+  const result = await pool.query(`DELETE FROM user_mt5_accounts WHERE id = $1 AND user_id = $2 RETURNING id`, [accountId, userId])
+  if (!result.rows.length) return res.status(404).json({ message: 'Account not found.' })
+  const remaining = await pool.query(`SELECT id FROM user_mt5_accounts WHERE user_id = $1 AND is_active = true`, [userId])
+  if (!remaining.rows.length) {
+    await pool.query(`DELETE FROM user_mt5_connections WHERE user_id = $1`, [userId])
+    await pool.query(`DELETE FROM user_mt5_data_cache WHERE user_id = $1`, [userId])
+  } else {
+    const merged = await getMergedMt5Data(userId)
+    if (merged) await pool.query(`INSERT INTO user_mt5_data_cache (user_id, data_json, updated_at) VALUES ($1, $2::jsonb, NOW()) ON CONFLICT (user_id) DO UPDATE SET data_json = EXCLUDED.data_json, updated_at = NOW()`, [userId, JSON.stringify(merged)])
+  }
+  return res.json({ ok: true })
+})
+
+app.post('/api/mt5/accounts/:id/sync', authRequired, async (req, res) => {
+  const userId = req.auth.sub
+  const accountId = Number(req.params.id)
+  const days = Math.max(1, Math.min(365, Number(req.body?.days || 365)))
+  if (!accountId) return res.status(400).json({ message: 'Invalid account ID.' })
+  const accRes = await pool.query(`SELECT * FROM user_mt5_accounts WHERE id = $1 AND user_id = $2`, [accountId, userId])
+  const account = accRes.rows[0]
+  if (!account) return res.status(404).json({ message: 'Account not found.' })
+  if (!account.is_active) return res.status(400).json({ message: 'Account is inactive.' })
+  try {
+    const password = decryptMt5Password(account.mt5_password)
+    const { snapshot, analysis, tradeBook, balance, equity } = await collectAndCacheAccountSnapshot({ accountId, userId, login: account.mt5_login, password, server: account.mt5_server, days, terminalPath: account.mt5_terminal_path || '' })
+    if (days !== Number(account.sync_days)) await pool.query(`UPDATE user_mt5_accounts SET sync_days = $1 WHERE id = $2`, [days, accountId])
+    triggerAutoMt5SyncSoon(100)
+    return res.json({ ok: true, snapshot, analysis, tradeBook, balance, equity, totalDeals: snapshot?.historyDeals?.length || 0, totalPositions: snapshot?.openPositions?.length || 0 })
+  } catch (error) {
+    await pool.query(`UPDATE user_mt5_accounts SET last_sync_status = 'error', last_sync_error = $1, updated_at = NOW() WHERE id = $2`, [String(error.message || '').slice(0, 500), accountId])
+    return res.status(500).json({ message: error.message || 'Cannot sync MT5 data now.' })
+  }
+})
+
+app.post('/api/mt5/accounts/sync-all', authRequired, async (req, res) => {
+  const userId = req.auth.sub
+  const days = Math.max(1, Math.min(365, Number(req.body?.days || 365)))
+  const accRes = await pool.query(`SELECT * FROM user_mt5_accounts WHERE user_id = $1 AND is_active = true ORDER BY created_at ASC`, [userId])
+  if (!accRes.rows.length) return res.status(400).json({ message: 'No active MT5 accounts.' })
+  const results = []
+  for (const acc of accRes.rows) {
+    try {
+      const pw = decryptMt5Password(acc.mt5_password)
+      const { snapshot, balance, equity } = await collectAndCacheAccountSnapshot({ accountId: Number(acc.id), userId, login: acc.mt5_login, password: pw, server: acc.mt5_server, days, terminalPath: acc.mt5_terminal_path || '' })
+      results.push({ accountId: Number(acc.id), login: maskSecret(acc.mt5_login), ok: true, balance, equity, totalDeals: snapshot?.historyDeals?.length || 0 })
+    } catch (err) {
+      await pool.query(`UPDATE user_mt5_accounts SET last_sync_status = 'error', last_sync_error = $1, updated_at = NOW() WHERE id = $2`, [String(err.message || '').slice(0, 500), acc.id]).catch(() => {})
+      results.push({ accountId: Number(acc.id), login: maskSecret(acc.mt5_login), ok: false, error: err.message || 'Sync failed' })
+    }
+  }
+  triggerAutoMt5SyncSoon(100)
+  return res.json({ ok: true, results })
+})
+
+app.get('/api/mt5/data/merged', authRequired, async (req, res) => {
+  const userId = req.auth.sub
+  const subscription = await getUserSubscription(userId)
+  const merged = await getMergedMt5Data(userId)
+  if (!merged) return res.json({ hasData: false, updatedAt: null, analysis: null, accounts: [] })
+  const tradeBook = buildTradeBook(merged)
+  const analysis = buildTradeBehaviorAnalysis(tradeBook.trades, merged.account || {})
+  const projectedAnalysis = projectAnalysisByPlan(analysis, subscription.planCode)
+  const projectedTradeBook = projectTradeBookByPlan(tradeBook, subscription.planCode, analysis)
+  return res.json({ hasData: true, updatedAt: merged.fetchedAt, plan: { code: subscription.planCode, isPro: subscription.isPro }, analysis: projectedAnalysis, tradeBook: projectedTradeBook, accounts: merged.accounts || [], snapshot: merged })
+})
+
 app.get('/api/trading/statement/status', authRequired, async (req, res) => {
   const userId = req.auth.sub
   const cacheRes = await pool.query(
@@ -5026,6 +5535,46 @@ app.post('/api/trading/statement/import', authRequired, async (req, res) => {
     })
   } catch (error) {
     return res.status(400).json({ message: error.message || 'Không parse được statement.' })
+  }
+})
+
+app.get('/api/prop-accounts/:id/metrics', authRequired, async (req, res) => {
+  try {
+    const userId = req.auth.sub
+    const accountId = req.params.id
+
+    const accountRes = await pool.query(
+      `SELECT * FROM trading_accounts WHERE id = $1 AND user_id = $2`,
+      [accountId, userId]
+    )
+    if (!accountRes.rows.length) return res.status(404).json({ message: 'Account not found' })
+
+    const tradesRes = await pool.query(
+      `SELECT * FROM trades WHERE account_id = $1 ORDER BY entry_time ASC`,
+      [accountId]
+    )
+
+    const metrics = calculatePropMetrics(accountRes.rows[0], tradesRes.rows)
+    return res.json(metrics)
+  } catch (error) {
+    return res.status(500).json({ message: error.message })
+  }
+})
+
+app.get('/api/prop-accounts/:id/analytics', authRequired, async (req, res) => {
+  try {
+    const userId = req.auth.sub
+    const accountId = req.params.id
+
+    const tradesRes = await pool.query(
+      `SELECT * FROM trades WHERE account_id = $1 ORDER BY entry_time ASC`,
+      [accountId]
+    )
+
+    const analytics = analyzeBehavior(tradesRes.rows)
+    return res.json(analytics)
+  } catch (error) {
+    return res.status(500).json({ message: error.message })
   }
 })
 
@@ -7940,10 +8489,16 @@ httpServer.listen(PORT, () => {
     runAutoMt5SyncJob().catch((error) => {
       console.error('[mt5-auto-sync][startup]', error.message || error)
     })
+    runMultiAccountAutoSync().catch((error) => {
+      console.error('[mt5-multi-sync][startup]', error.message || error)
+    })
     if (!mt5AutoSyncTimer) {
       mt5AutoSyncTimer = setInterval(() => {
         runAutoMt5SyncJob().catch((error) => {
           console.error('[mt5-auto-sync][interval]', error.message || error)
+        })
+        runMultiAccountAutoSync().catch((error) => {
+          console.error('[mt5-multi-sync][interval]', error.message || error)
         })
       }, MT5_AUTO_SYNC_INTERVAL_MS)
     }

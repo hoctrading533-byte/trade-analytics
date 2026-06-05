@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("LuminaFox.Tests")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+4e1d352e083396541c904252d5e2adeffa6c9fff")]
 [assembly: System.Reflection.AssemblyProductAttribute("LuminaFox.Tests")]
 [assembly: System.Reflection.AssemblyTitleAttribute("LuminaFox.Tests")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

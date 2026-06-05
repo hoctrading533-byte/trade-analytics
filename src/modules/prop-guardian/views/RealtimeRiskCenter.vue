@@ -4,6 +4,7 @@
       :accounts="accounts"
       :account-id="accountId"
       :risk-mode="evaluation.riskMode"
+      :evaluation="evaluation"
       @update:account-id="setAccount"
     />
     <main class="pg-content">

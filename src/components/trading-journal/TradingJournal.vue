@@ -3,359 +3,192 @@
     <div class="tj-shell">
       <header class="tj-hero">
         <div class="tj-hero-copy">
-          <p class="tj-kicker">{{ t('journal.kicker') }}</p>
-          <h1>{{ t('journal.title') }}</h1>
-          <p>{{ t('journal.subtitle') }}</p>
-          <div class="tj-hero-actions">
-            <button class="tj-btn tj-btn-primary" type="button" :disabled="loading" @click="refreshAll">
-              {{ loading ? t('common.loading') : t('common.refresh') }}
-            </button>
-            <span class="tj-sync-pill">{{ t('journal.visibleTrades', { count: trades.length }) }}</span>
+          <p class="tj-kicker">JOURNAL</p>
+          <h1>Trading Journal</h1>
+          <p>Phân tích hiệu suất giao dịch và theo dõi nhật ký hàng ngày của bạn</p>
+          <div class="tj-tabs">
+            <button class="tj-tab-btn" :class="{ active: activeTab === 'calendar' }" @click="activeTab = 'calendar'">Daily Journal</button>
+            <button class="tj-tab-btn" :class="{ active: activeTab === 'log' }" @click="activeTab = 'log'">Trade Log</button>
           </div>
         </div>
-
-        <aside class="tj-formula-card">
-          <span>{{ t('journal.formulaEngine') }}</span>
-          <strong>Winrate / RR / Profit Factor</strong>
-          <div class="tj-formula-list">
-            <p>Winrate = winning closed trades / closed trades</p>
-            <p>RR = realized PnL / planned risk</p>
-            <p>PF = gross profit / gross loss</p>
-          </div>
-        </aside>
       </header>
 
-      <div v-if="errorMessage" class="tj-alert tj-alert-danger">{{ errorMessage }}</div>
-      <div v-if="successMessage" class="tj-alert tj-alert-success">{{ successMessage }}</div>
+      <div v-if="loading" class="tj-alert">Đang đồng bộ dữ liệu MT5...</div>
+      <div v-else-if="error" class="tj-alert tj-alert-danger">{{ error }}</div>
 
-      <section class="tj-metric-grid">
-        <article class="tj-metric-card">
-          <span>{{ t('journal.totalTrades') }}</span>
-          <strong>{{ summary.totalTrades || 0 }}</strong>
-          <small>{{ summary.closedTrades || 0 }} {{ t('journal.closed') }}</small>
-        </article>
-        <article class="tj-metric-card">
-          <span>{{ t('journal.winrate') }}</span>
-          <strong>{{ percent(summary.winRate) }}</strong>
-          <small>{{ summary.winners || 0 }} {{ t('journal.winners') }}</small>
-        </article>
-        <article class="tj-metric-card">
-          <span>{{ t('journal.netPnl') }}</span>
-          <strong :class="toneClass(summary.netPnl)">{{ signedMoney(summary.netPnl) }}</strong>
-          <small>{{ t('journal.afterFees') }}</small>
-        </article>
-        <article class="tj-metric-card">
-          <span>{{ t('journal.profitFactor') }}</span>
-          <strong>{{ profitFactor(summary.profitFactor) }}</strong>
-          <small>{{ t('journal.grossProfitLoss') }}</small>
-        </article>
-        <article class="tj-metric-card">
-          <span>{{ t('journal.averageRr') }}</span>
-          <strong>{{ ratio(summary.avgRr) }}</strong>
-          <small>{{ t('journal.realizedRiskMultiple') }}</small>
-        </article>
-        <article class="tj-metric-card">
-          <span>{{ t('journal.expectancy') }}</span>
-          <strong :class="toneClass(summary.expectancy)">{{ signedMoney(summary.expectancy) }}</strong>
-          <small>{{ t('journal.averageClosedTrade') }}</small>
-        </article>
-      </section>
-
-      <section class="tj-workspace">
-        <article class="tj-panel tj-form-panel">
-          <div class="tj-panel-head">
-            <div>
-              <p class="tj-panel-kicker">{{ t('journal.manualImport') }}</p>
-              <h2>{{ isEdit ? t('journal.editTrade') : t('journal.addTrade') }}</h2>
+      <template v-else>
+        <!-- CALENDAR VIEW -->
+        <section v-if="activeTab === 'calendar'" class="tj-calendar-view">
+          <div class="tj-calendar-toolbar">
+            <button class="tj-btn tj-btn-ghost" @click="prevMonth">‹ Trước</button>
+            <h2 class="tj-month-title">{{ currentMonthLabel }}</h2>
+            <button class="tj-btn tj-btn-ghost" @click="nextMonth">Sau ›</button>
+          </div>
+          
+          <div class="tj-calendar-summary">
+            <div class="tj-summary-item">
+              <span>Net P&L</span>
+              <strong :class="toneClass(monthlySummary.netProfit)">{{ signedMoney(monthlySummary.netProfit) }}</strong>
             </div>
-            <button v-if="isEdit" class="tj-btn tj-btn-ghost tj-btn-small" type="button" @click="resetForm">
-              {{ t('journal.cancelEdit') }}
-            </button>
+            <div class="tj-summary-item">
+              <span>Win Rate</span>
+              <strong class="tj-good">{{ num(monthlySummary.winRate).toFixed(2) }}%</strong>
+            </div>
+            <div class="tj-summary-item">
+              <span>Trades</span>
+              <strong>{{ monthlySummary.total }}</strong>
+            </div>
+            <div class="tj-summary-item">
+              <span>Profit Factor</span>
+              <strong>{{ num(monthlySummary.profitFactor).toFixed(2) }}</strong>
+            </div>
+            <div class="tj-summary-item">
+              <span>Avg Win</span>
+              <strong class="tj-good">{{ money(monthlySummary.avgWin) }}</strong>
+            </div>
+            <div class="tj-summary-item">
+              <span>Avg Loss</span>
+              <strong class="tj-bad">{{ money(monthlySummary.avgLoss) }}</strong>
+            </div>
           </div>
 
-          <form class="tj-form-layout" @submit.prevent="saveTrade">
-            <div class="tj-form-grid">
-              <label>
-                <span>{{ t('journal.account') }}</span>
-                <select v-model="form.accountId">
-                  <option value="" disabled>{{ t('journal.selectAccount') }}</option>
-                  <option v-for="account in accounts" :key="account.id" :value="account.id">
-                    {{ account.name }} - {{ account.broker || 'Manual' }}
-                  </option>
-                </select>
-              </label>
-              <label>
-                <span>{{ t('journal.symbol') }}</span>
-                <input v-model="form.symbol" placeholder="XAUUSD" />
-              </label>
-              <label>
-                <span>{{ t('journal.assetClass') }}</span>
-                <select v-model="form.assetClass">
-                  <option value="forex">Forex</option>
-                  <option value="crypto">Crypto</option>
-                  <option value="stocks">Stocks</option>
-                  <option value="futures">Futures</option>
-                  <option value="indices">Indices</option>
-                </select>
-              </label>
-              <label>
-                <span>{{ t('journal.side') }}</span>
-                <select v-model="form.side">
-                  <option value="LONG">LONG</option>
-                  <option value="SHORT">SHORT</option>
-                </select>
-              </label>
-              <label>
-                <span>{{ t('journal.status') }}</span>
-                <select v-model="form.status">
-                  <option value="closed">Closed</option>
-                  <option value="open">Open</option>
-                </select>
-              </label>
-              <label>
-                <span>{{ t('journal.source') }}</span>
-                <select v-model="form.source">
-                  <option value="manual">Manual</option>
-                  <option value="csv">CSV import</option>
-                  <option value="broker">Broker sync</option>
-                  <option value="mt5">MT5</option>
-                </select>
-              </label>
-              <label>
-                <span>{{ t('journal.entryTime') }}</span>
-                <input v-model="form.entryTime" type="datetime-local" />
-              </label>
-              <label>
-                <span>{{ t('journal.exitTime') }}</span>
-                <input v-model="form.exitTime" type="datetime-local" :disabled="form.status === 'open'" />
-              </label>
-              <label>
-                <span>{{ t('journal.entryPrice') }}</span>
-                <input v-model="form.entryPrice" type="number" step="0.0001" min="0" />
-              </label>
-              <label>
-                <span>{{ t('journal.exitPrice') }}</span>
-                <input v-model="form.exitPrice" type="number" step="0.0001" min="0" :disabled="form.status === 'open'" />
-              </label>
-              <label>
-                <span>{{ t('journal.stopLoss') }}</span>
-                <input v-model="form.stopLoss" type="number" step="0.0001" min="0" />
-              </label>
-              <label>
-                <span>{{ t('journal.takeProfit') }}</span>
-                <input v-model="form.takeProfit" type="number" step="0.0001" min="0" />
-              </label>
-              <label>
-                <span>{{ t('journal.volume') }}</span>
-                <input v-model="form.volume" type="number" step="0.01" min="0" />
-              </label>
-              <label>
-                <span>{{ t('journal.fees') }}</span>
-                <input v-model="form.fees" type="number" step="0.01" min="0" />
-              </label>
-              <label>
-                <span>{{ t('journal.session') }}</span>
-                <select v-model="form.session">
-                  <option>Asia</option>
-                  <option>London</option>
-                  <option>New York</option>
-                  <option>Overlap</option>
-                </select>
-              </label>
-              <label>
-                <span>{{ t('journal.importRef') }}</span>
-                <input v-model="form.importRef" placeholder="ticket, csv row, broker order id" />
-              </label>
-              <label>
-                <span>{{ t('journal.strategyTag') }}</span>
-                <input v-model="form.strategyTag" placeholder="Breakout, SMC, Trend" />
-              </label>
-              <label>
-                <span>{{ t('journal.emotionTag') }}</span>
-                <input v-model="form.emotionTag" placeholder="Calm, FOMO, Revenge" />
-              </label>
-              <label>
-                <span>{{ t('journal.setupTag') }}</span>
-                <input v-model="form.setupTag" placeholder="A+, Pullback" />
-              </label>
-              <label>
-                <span>{{ t('journal.customTags') }}</span>
-                <input v-model="form.customTagsText" placeholder="news, gold, scalp" />
-              </label>
-              <label>
-                <span>MAE</span>
-                <input v-model="form.mae" type="number" step="0.01" min="0" />
-              </label>
-              <label>
-                <span>MFE</span>
-                <input v-model="form.mfe" type="number" step="0.01" min="0" />
-              </label>
-              <label class="tj-wide">
-                <span>{{ t('journal.notes') }}</span>
-                <textarea v-model="form.notes" rows="3" placeholder="Context, mistake, execution notes"></textarea>
-              </label>
+          <div class="tj-calendar-grid">
+            <div class="tj-day-name" v-for="day in ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']" :key="day">{{ day }}</div>
+            <div v-for="(cell, index) in calendarCells" :key="index" class="tj-calendar-cell" :class="cellClass(cell)">
+              <template v-if="!cell.empty">
+                <span class="tj-date-num">{{ cell.day }}</span>
+                <div v-if="cell.count > 0" class="tj-cell-data">
+                  <span class="tj-cell-pnl">{{ signedMoney(cell.pnl) }}</span>
+                  <span class="tj-cell-count">{{ cell.count }} Trades</span>
+                </div>
+              </template>
             </div>
+          </div>
+        </section>
 
-            <aside class="tj-preview-card">
-              <div>
-                <span>{{ t('journal.calculatedPreview') }}</span>
-                <strong :class="toneClass(tradePreview.pnl)">{{ signedMoney(tradePreview.pnl) }}</strong>
-                <small>{{ tradePreview.isClosed ? tradePreview.outcome : t('journal.openTradePreview') }}</small>
+        <!-- TRADE LOG VIEW -->
+        <section v-if="activeTab === 'log'" class="tj-log-view">
+          <div class="tj-panel">
+            <div class="tj-panel-head">
+              <h2>Trade Log</h2>
+              <div class="tj-filters">
+                <input type="text" v-model="filter.symbol" placeholder="Search Symbol..." />
+                <select v-model="filter.side">
+                  <option value="">All Sides</option>
+                  <option value="LONG">Long</option>
+                  <option value="SHORT">Short</option>
+                </select>
               </div>
-              <div class="tj-preview-grid">
-                <div>
-                  <span>RR</span>
-                  <strong>{{ ratio(tradePreview.rr) }}</strong>
-                </div>
-                <div>
-                  <span>{{ t('journal.planRr') }}</span>
-                  <strong>{{ ratio(tradePreview.plannedRr) }}</strong>
-                </div>
-                <div>
-                  <span>{{ t('journal.risk') }}</span>
-                  <strong>{{ money(tradePreview.riskAmount) }}</strong>
-                </div>
-                <div>
-                  <span>{{ t('journal.reward') }}</span>
-                  <strong>{{ money(tradePreview.rewardAmount) }}</strong>
+            </div>
+            
+            <div class="tj-trade-table">
+              <div class="tj-trade-head">
+                <span>Open Date</span>
+                <span>Close Date</span>
+                <span>Symbol</span>
+                <span>Side</span>
+                <span>Entry</span>
+                <span>Exit</span>
+                <span>Volume</span>
+                <span>Net PnL</span>
+                <span>RR</span>
+              </div>
+              <div v-if="paginatedTrades.length">
+                <div v-for="trade in paginatedTrades" :key="trade.id" class="tj-trade-row clickable" @click="openTrade(trade)">
+                  <span>{{ dt(trade.openTime || trade.entryTime) }}</span>
+                  <span>{{ dt(trade.closeAt || trade.exitTime) }}</span>
+                  <strong>{{ trade.symbol }}</strong>
+                  <span :class="trade.side === 'LONG' ? 'tj-good' : 'tj-bad'">{{ trade.side }}</span>
+                  <span>{{ num(trade.entryPrice) }}</span>
+                  <span>{{ num(trade.exitPrice) }}</span>
+                  <span>{{ num(trade.volume) }}</span>
+                  <strong :class="toneClass(trade.pnl)">{{ signedMoney(trade.pnl) }}</strong>
+                  <span>{{ trade.rMultiple ? `${num(trade.rMultiple).toFixed(2)}R` : '--' }}</span>
                 </div>
               </div>
-              <button class="tj-btn tj-btn-primary tj-btn-full" type="submit" :disabled="saving">
-                {{ saving ? t('journal.saving') : isEdit ? t('journal.updateTrade') : t('journal.addTrade') }}
-              </button>
-            </aside>
-          </form>
-        </article>
-
-        <article class="tj-panel tj-account-panel">
-          <div class="tj-panel-head">
-            <div>
-              <p class="tj-panel-kicker">Accounts</p>
-              <h2>Trading accounts</h2>
+              <p v-else class="tj-empty">Không có lệnh nào khớp với bộ lọc.</p>
             </div>
           </div>
-          <div class="tj-account-list">
-            <div v-for="account in accounts" :key="account.id" class="tj-account-row">
-              <div>
-                <strong>{{ account.name }}</strong>
-                <span>{{ account.broker || 'Manual' }} / {{ account.market || 'multi' }}</span>
+        </section>
+        <!-- TRADE DETAILS MODAL -->
+        <div v-if="selectedTrade" class="tj-modal-overlay" @click.self="closeTrade">
+          <div class="tj-modal">
+            <header class="tj-modal-header">
+              <h2>Chi tiết Lệnh #{{ selectedTrade.ticket || selectedTrade.id }}</h2>
+              <button class="tj-close-btn" @click="closeTrade">✕</button>
+            </header>
+            <div class="tj-modal-body">
+              <div class="tj-modal-grid">
+                <!-- Meta data -->
+                <div class="tj-trade-meta">
+                  <div class="tj-meta-item"><span>Symbol</span><strong>{{ selectedTrade.symbol }}</strong></div>
+                  <div class="tj-meta-item"><span>Side</span><strong :class="selectedTrade.side === 'LONG' ? 'tj-good' : 'tj-bad'">{{ selectedTrade.side }}</strong></div>
+                  <div class="tj-meta-item"><span>Net PnL</span><strong :class="toneClass(selectedTrade.pnl)">{{ signedMoney(selectedTrade.pnl) }}</strong></div>
+                  <div class="tj-meta-item"><span>Entry</span><strong>{{ selectedTrade.entryPrice }}</strong></div>
+                  <div class="tj-meta-item"><span>Exit</span><strong>{{ selectedTrade.exitPrice }}</strong></div>
+                  <div class="tj-meta-item"><span>RR</span><strong>{{ selectedTrade.rMultiple ? `${num(selectedTrade.rMultiple).toFixed(2)}R` : '--' }}</strong></div>
+                </div>
+
+                <!-- Tagging & Notes -->
+                <div class="tj-trade-edit">
+                  <label>
+                    <span>Chiến lược (Strategy)</span>
+                    <select v-model="selectedTrade.strategyTag">
+                      <option value="">-- Chọn chiến lược --</option>
+                      <option value="Breakout">Breakout</option>
+                      <option value="Pullback">Pullback</option>
+                      <option value="SMC">SMC / Smart Money Concepts</option>
+                      <option value="Supply Demand">Supply Demand</option>
+                      <option value="Trend Following">Trend Following</option>
+                    </select>
+                  </label>
+                  <label>
+                    <span>Mẫu hình (Setup)</span>
+                    <input type="text" v-model="selectedTrade.setupTag" placeholder="Ví dụ: A+, Pinbar, Engulfing..." />
+                  </label>
+                  <label class="tj-wide">
+                    <span>Ghi chú giao dịch (Notes)</span>
+                    <textarea v-model="selectedTrade.notes" rows="6" placeholder="Phân tích ngữ cảnh, cảm xúc khi vào lệnh, rút kinh nghiệm..."></textarea>
+                  </label>
+                </div>
               </div>
-              <em>{{ account.currency }}</em>
             </div>
-          </div>
-          <div class="tj-account-form">
-            <input v-model="accountForm.name" placeholder="Account name" />
-            <input v-model="accountForm.broker" placeholder="Broker" />
-            <div class="tj-split">
-              <input v-model="accountForm.market" placeholder="Market" />
-              <input v-model="accountForm.currency" placeholder="USD" />
-            </div>
-            <button class="tj-btn tj-btn-ghost tj-btn-full" type="button" :disabled="saving" @click="createAccount">
-              Add account
-            </button>
-          </div>
-        </article>
-      </section>
-
-      <section class="tj-panel tj-table-panel">
-        <div class="tj-panel-head">
-          <div>
-            <p class="tj-panel-kicker">Global filters</p>
-            <h2>Trade list</h2>
-          </div>
-          <div class="tj-table-actions">
-            <button class="tj-btn tj-btn-ghost tj-btn-small" type="button" @click="clearFilters">Clear</button>
-            <button class="tj-btn tj-btn-small" type="button" @click="loadTrades">Apply filters</button>
+            <footer class="tj-modal-footer">
+              <button class="tj-btn tj-btn-ghost" @click="closeTrade">Hủy</button>
+              <button class="tj-btn tj-btn-primary" @click="saveTradeDetails">Lưu thay đổi</button>
+            </footer>
           </div>
         </div>
-
-        <div class="tj-filters">
-          <select v-model="filter.accountId">
-            <option value="">All accounts</option>
-            <option v-for="account in accounts" :key="account.id" :value="account.id">{{ account.name }}</option>
-          </select>
-          <input v-model="filter.symbol" placeholder="Symbol" />
-          <input v-model="filter.dateFrom" type="date" />
-          <input v-model="filter.dateTo" type="date" />
-          <input v-model="filter.tag" placeholder="Strategy / emotion / tag" />
-        </div>
-
-        <div class="tj-trade-table">
-          <div class="tj-trade-head">
-            <span>Time</span>
-            <span>Account</span>
-            <span>Symbol</span>
-            <span>Side</span>
-            <span>Entry / Exit</span>
-            <span>RR</span>
-            <span>Plan</span>
-            <span>PnL</span>
-            <span>Tags</span>
-            <span></span>
-          </div>
-          <div v-if="trades.length">
-            <div v-for="trade in trades" :key="trade.id" class="tj-trade-row">
-              <span>{{ dt(trade.entryTime) }}</span>
-              <span>{{ trade.accountName }}</span>
-              <strong>{{ trade.symbol }}</strong>
-              <span :class="trade.side === 'LONG' ? 'tj-good' : 'tj-bad'">{{ trade.side }}</span>
-              <span>{{ num(trade.entryPrice) }} / {{ trade.status === 'closed' ? num(trade.exitPrice) : 'OPEN' }}</span>
-              <span>{{ ratio(trade.rr) }}</span>
-              <span>{{ ratio(trade.plannedRr) }}</span>
-              <span :class="toneClass(trade.pnl)">{{ signedMoney(trade.pnl) }}</span>
-              <span class="tj-tag-cell">
-                <em v-if="trade.strategyTag">{{ trade.strategyTag }}</em>
-                <em v-if="trade.emotionTag">{{ trade.emotionTag }}</em>
-                <em v-if="trade.setupTag">{{ trade.setupTag }}</em>
-                <em v-for="tag in trade.customTags" :key="`${trade.id}-${tag}`">{{ tag }}</em>
-              </span>
-              <span class="tj-row-actions">
-                <button type="button" class="tj-mini-link" @click="editTrade(trade)">Edit</button>
-                <button type="button" class="tj-mini-link danger" @click="deleteTrade(trade)">Delete</button>
-              </span>
-            </div>
-          </div>
-          <p v-else class="tj-empty">No trades match the current filters.</p>
-        </div>
-      </section>
+      </template>
     </div>
   </section>
 </template>
 
 <script setup>
 import './trading-journal.css'
-import { useI18n } from '../../composables/useI18n.js'
 import { useTradingJournal } from './useTradingJournal.js'
-
-const { t } = useI18n()
 
 const {
   loading,
-  saving,
-  errorMessage,
-  successMessage,
-  accounts,
-  trades,
-  summary,
+  error,
+  activeTab,
   filter,
-  accountForm,
-  form,
-  isEdit,
-  tradePreview,
-  refreshAll,
-  loadTrades,
-  createAccount,
-  saveTrade,
-  editTrade,
-  deleteTrade,
-  resetForm,
-  clearFilters
+  paginatedTrades,
+  currentDate,
+  prevMonth,
+  nextMonth,
+  currentMonthLabel,
+  monthlySummary,
+  calendarCells,
+  selectedTrade,
+  openTrade,
+  closeTrade,
+  saveTradeDetails
 } = useTradingJournal()
 
 function money(value) {
   return Number(value || 0).toLocaleString('en-US', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
+    style: 'currency', currency: 'USD'
   })
 }
 
@@ -365,24 +198,17 @@ function signedMoney(value) {
   return `${sign}${money(number)}`
 }
 
-function percent(value) {
-  return `${Number(value || 0).toFixed(2)}%`
-}
-
-function ratio(value) {
-  return Number(value || 0).toFixed(2)
-}
-
-function profitFactor(value) {
-  const number = Number(value || 0)
-  return number >= 999 ? 'INF' : number.toFixed(2)
-}
-
 function toneClass(value) {
   const number = Number(value || 0)
   if (number > 0) return 'tj-good'
   if (number < 0) return 'tj-bad'
   return ''
+}
+
+function cellClass(cell) {
+  if (cell.empty) return 'is-empty'
+  if (cell.count === 0) return 'is-idle'
+  return cell.pnl >= 0 ? 'is-win' : 'is-loss'
 }
 
 function num(value) {

@@ -1,19 +1,19 @@
-import { createRouter, createWebHashHistory } from 'vue-router'
+import { createRouter, createWebHistory } from 'vue-router'
 import { useUserStore } from '../stores/useUserStore.js'
 import { pinia } from '../stores/pinia.js'
 import Dashboard from '../views/Dashboard.vue'
 
 const routes = [
   { path: '/', redirect: '/dashboard' },
-  { path: '/login', name: 'Login', component: () => import('../views/Login.vue'), meta: { guestOnly: true } },
-  { path: '/register', name: 'Register', component: () => import('../views/Register.vue'), meta: { guestOnly: true } },
+  { path: '/login', name: 'Login', component: () => import('../views/Login.vue'), meta: { guestOnly: true, hideGlobalNavbar: true } },
+  { path: '/register', name: 'Register', component: () => import('../views/Register.vue'), meta: { guestOnly: true, hideGlobalNavbar: true } },
   {
     path: '/forgot-password',
     name: 'ForgotPassword',
     component: () => import('../views/ForgotPassword.vue'),
-    meta: { guestOnly: true }
+    meta: { guestOnly: true, hideGlobalNavbar: true }
   },
-  { path: '/auth/callback', name: 'AuthCallback', component: () => import('../views/AuthCallback.vue') },
+  { path: '/auth/callback', name: 'AuthCallback', component: () => import('../views/AuthCallback.vue'), meta: { hideGlobalNavbar: true } },
   {
     path: '/pricing',
     name: 'Pricing',
@@ -25,10 +25,11 @@ const routes = [
     path: '/dashboard',
     name: 'Dashboard',
     component: Dashboard,
-    meta: { requiresAuth: true, hideGlobalNavbar: true }
+    meta: { requiresAuth: true }
   },
   {
     path: '/prop-guardian',
+    alias: '/quan-ly-tai-khoan-thi-quy',
     name: 'PropGuardian',
     component: () => import('../modules/prop-guardian/views/PropGuardianDashboard.vue'),
     meta: { requiresAuth: true, hideGlobalNavbar: true }
@@ -59,6 +60,12 @@ const routes = [
     path: '/prop-guardian/review',
     name: 'PropGuardianReview',
     component: () => import('../modules/prop-guardian/views/TradeReview.vue'),
+    meta: { requiresAuth: true, hideGlobalNavbar: true }
+  },
+  {
+    path: '/prop-evaluation',
+    name: 'PropEvaluation',
+    component: () => import('../components/prop-evaluation/PropEvaluationDashboard.vue'),
     meta: { requiresAuth: true, hideGlobalNavbar: true }
   },
   {
@@ -96,7 +103,7 @@ const routes = [
     path: '/phan-tich',
     name: 'Analytics',
     component: () => import('../views/Analytics.vue'),
-    meta: { requiresAuth: true, hideGlobalNavbar: true }
+    meta: { requiresAuth: true }
   },
   {
     path: '/playbook',
@@ -155,7 +162,7 @@ const routes = [
 ]
 
 const router = createRouter({
-  history: createWebHashHistory(),
+  history: createWebHistory(import.meta.env.BASE_URL),
   routes
 })
 
@@ -173,10 +180,11 @@ router.beforeEach(async (to) => {
     return { name: 'Dashboard' }
   }
   if (to.meta.requiresAuth && userStore.isLoggedIn && !userStore.isAdmin) {
-    if (userStore.requiresPayment && to.name !== 'Pricing') {
-      return { name: 'Pricing', query: { redirect: to.fullPath } }
-    }
-    if (!userStore.requiresPayment && to.name === 'Pricing') {
+    // Payment wall has been disabled by user request
+    // if (userStore.requiresPayment && to.name !== 'Pricing') {
+    //   return { name: 'Pricing', query: { redirect: to.fullPath } }
+    // }
+    if (to.name === 'Pricing') {
       return { name: 'Dashboard' }
     }
   }

@@ -217,17 +217,65 @@ function inferSession(value) {
   return 'NewYork'
 }
 
-const accountId = ref(propGuardianAccounts[0].id)
+const CONNECTED_ACCOUNTS_KEY = 'luminafox_connected_mt5_accounts'
+const ROLE_KEY = 'luminafox_prop_guardian_role'
+
+const currentRole = ref(localStorage.getItem(ROLE_KEY) || 'user')
+function toggleRole() {
+  currentRole.value = currentRole.value === 'admin' ? 'user' : 'admin'
+  localStorage.setItem(ROLE_KEY, currentRole.value)
+}
+
+const accounts = ref([])
+function loadAccountsFromStorage() {
+  const list = readJson(CONNECTED_ACCOUNTS_KEY, [])
+  if (list.length > 0) {
+    accounts.value = list.map(acc => ({
+      id: acc.id,
+      brokerName: acc.brokerName || 'MetaQuotes',
+      brokerServer: acc.brokerServer || acc.server || 'Demo-Server',
+      loginId: String(acc.loginId || acc.login),
+      accountName: acc.accountName || `MT5 Account ${acc.loginId}`,
+      currency: acc.currency || 'USD',
+      initialBalance: Number(acc.initialBalance || 100000),
+      currentBalance: Number(acc.currentBalance || acc.initialBalance || 100000),
+      currentEquity: Number(acc.currentEquity || acc.initialBalance || 100000),
+      margin: acc.margin || 0,
+      freeMargin: acc.freeMargin || Number(acc.initialBalance || 100000),
+      marginLevel: acc.marginLevel || 0,
+      leverage: acc.leverage || 100,
+      floatingProfit: acc.floatingProfit || 0,
+      credit: acc.credit || 0,
+      accountType: acc.accountType || 'prop',
+      status: acc.status || 'active'
+    }))
+  } else {
+    accounts.value = clone(propGuardianAccounts)
+  }
+}
+
+// Initial load
+loadAccountsFromStorage()
+
+const accountId = ref(accounts.value.length > 0 ? accounts.value[0].id : propGuardianAccounts[0].id)
 const challenge = ref(readJson(CHALLENGE_KEY, clone(propChallenges[0])))
 const savedTaskStatuses = ref(readJson(TASK_STATUS_KEY, {}))
 
+const positions = ref(clone(openPositions))
+const orders = ref(clone(pendingOrders))
+const trades = ref(clone(closedTrades))
+const snapshots = ref(clone(dailySnapshots))
+
+function reloadAccounts() {
+  loadAccountsFromStorage()
+  if (accounts.value.length > 0 && !accounts.value.some(acc => acc.id === accountId.value)) {
+    accountId.value = accounts.value[0].id
+  }
+}
+
 export function usePropGuardian() {
   const userStore = useUserStore()
-  const accounts = ref(clone(propGuardianAccounts))
-  const positions = ref(clone(openPositions))
-  const orders = ref(clone(pendingOrders))
-  const trades = ref(clone(closedTrades))
-  const snapshots = ref(clone(dailySnapshots))
+
   const refreshTick = ref(Date.now())
   const isLivePolling = ref(true)
   const isLoadingLive = ref(false)
@@ -243,6 +291,70 @@ export function usePropGuardian() {
   })
   let timer = null
   let pollingBusy = false
+
+  const watchlist = ref([
+    { symbol: 'XAUUSD', name: 'Gold', price: '2345.50', riskPercent: 1.0, baseSl: 30, currentEmotion: 'Calm' },
+    { symbol: 'US30', name: 'Dow Jones', price: '38500.00', riskPercent: 1.0, baseSl: 50, currentEmotion: 'Calm' },
+    { symbol: 'EURUSD', name: 'Euro', price: '1.0850', riskPercent: 1.0, baseSl: 15, currentEmotion: 'Calm' }
+  ])
+
+  const hideDangerousAssets = ref(false)
+
+  const sortedWatchlist = computed(() => {
+    const tradesBySymbol = {}
+    for (const trade of accountTrades.value) {
+      const sym = trade.symbol
+      if (!tradesBySymbol[sym]) {
+        tradesBySymbol[sym] = { wins: 0, total: 0, netProfit: 0, totalRisk: 0 }
+      }
+      tradesBySymbol[sym].total++
+      tradesBySymbol[sym].netProfit += Number(trade.netProfit || trade.profit || 0)
+      if (Number(trade.netProfit || trade.profit || 0) > 0) tradesBySymbol[sym].wins++
+      tradesBySymbol[sym].totalRisk += Math.max(0, Number(trade.riskAmount || 0))
+    }
+
+    return watchlist.value.map(item => {
+      const stats = tradesBySymbol[item.symbol] || { wins: 0, total: 0, netProfit: 0, totalRisk: 0 }
+      const winRate = stats.total > 0 ? (stats.wins / stats.total) * 100 : 0
+      const avgR = stats.totalRisk > 0 ? stats.netProfit / stats.totalRisk : 0
+      
+      // Flag as dangerous if netProfit is negative and traded at least 2 times
+      const isDangerous = stats.netProfit < 0 && (winRate < 45 && stats.total >= 2)
+      
+      return {
+        ...item,
+        winRate,
+        avgR,
+        totalTrades: stats.total,
+        netProfit: stats.netProfit,
+        isDangerous
+      }
+    }).sort((a, b) => {
+      // Dangerous ones to the bottom
+      if (a.isDangerous && !b.isDangerous) return 1
+      if (!a.isDangerous && b.isDangerous) return -1
+      
+      // Sort by win rate
+      if (b.winRate !== a.winRate) return b.winRate - a.winRate
+      return b.avgR - a.avgR
+    })
+  })
+
+  function setEmotion(symbol, emotion) {
+    const item = watchlist.value.find(i => i.symbol === symbol)
+    if (item) item.currentEmotion = emotion
+  }
+
+  function setWatchlistSl(symbol, sl) {
+    const item = watchlist.value.find(i => i.symbol === symbol)
+    if (item) item.baseSl = Number(sl) || 1
+  }
+
+  function setWatchlistRisk(symbol, risk) {
+    const item = watchlist.value.find(i => i.symbol === symbol)
+    if (item) item.riskPercent = Number(risk) || 0.1
+  }
+
 
   const selectedAccount = computed(() => accounts.value.find((item) => item.id === accountId.value) || accounts.value[0])
   const selectedChallenge = computed(() => ({
@@ -385,7 +497,9 @@ export function usePropGuardian() {
     const liveTrades = normalizeTradesFromApi(tradeBook.trades || snapshot.historyDeals || [], live.id, challengeId)
     const liveSnapshots = normalizeDailySnapshotsFromApi(tradeBook.daily || [], live, challengeId)
 
-    accounts.value = [live, ...clone(propGuardianAccounts).filter((item) => item.id !== live.id)]
+    const localSaved = readJson(CONNECTED_ACCOUNTS_KEY, [])
+    const otherAccounts = localSaved.filter(a => a.id !== live.id)
+    accounts.value = [live, ...otherAccounts]
     positions.value = livePositions
     orders.value = liveOrders
     trades.value = liveTrades
@@ -493,9 +607,17 @@ export function usePropGuardian() {
     isLoadingLive,
     initialLoading,
     dataSource,
-    liveError,
     lastSyncAt,
     mt5Status,
-    loadLiveData
+    loadLiveData,
+    currentRole,
+    toggleRole,
+    reloadAccounts,
+    watchlist,
+    sortedWatchlist,
+    hideDangerousAssets,
+    setEmotion,
+    setWatchlistSl,
+    setWatchlistRisk
   }
 }

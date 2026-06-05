@@ -18,6 +18,7 @@
         <div class="tz-header-controls">
           <button class="tz-btn-filter" type="button" @click="showForm = !showForm">+ Tạo Playbook</button>
           <label class="tz-search-bar"><span>⌕</span><input v-model="search" type="text" placeholder="Search playbooks..." /></label>
+          <LanguageToggle />
           <button class="tz-icon-btn" type="button" @click="toggleTheme"><span class="tz-theme-toggle-knob">{{ theme === 'dark' ? '🌙' : '☀️' }}</span></button>
         </div>
       </header>
@@ -39,7 +40,10 @@
             <div class="tz-pb-rules"><strong>Rules:</strong>
               <ul><li v-for="(rule, i) in pb.rulesList" :key="i">{{ rule }}</li></ul>
             </div>
-            <div class="tz-pb-meta"><span>Created: {{ pb.createdAt }}</span><span>{{ pb.tradesCount || 0 }} trades</span></div>
+            <div class="tz-pb-meta">
+              <span>Created: {{ pb.createdAt }}</span>
+              <button class="tz-btn-ghost tz-btn-delete" @click="deletePlaybook(pb.id)">✕</button>
+            </div>
           </article>
         </div>
       </main>
@@ -50,17 +54,18 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
+import LanguageToggle from '../components/LanguageToggle.vue'
 
 const route = useRoute()
 const theme = ref(localStorage.getItem('tz-theme') || 'dark')
 const search = ref('')
 const showForm = ref(false)
 const newPlaybook = ref({ name: '', category: 'setup', description: '', rules: '' })
-const playbooks = ref([
-  { id: 1, name: 'London Breakout', category: 'setup', description: 'Giao dịch breakout đầu phiên London dựa trên vùng giá châu Á.', rules: 'Chờ giá phá vỡ range châu Á\nVào lệnh sau nến xác nhận\nSL trên/dưới range 10 pips\nTP = 2x risk', createdAt: '2024-01-15', tradesCount: 24 },
-  { id: 2, name: 'Liquidity Sweep', category: 'setup', description: 'Săn lệnh sau khi giá quét thanh khoản vùng đỉnh/đáy.', rules: 'Xác định vùng thanh khoản rõ ràng\nChờ phản ứng giá tại vùng\nVào lệnh theo hướng phản ứng\nSL vượt quá vùng quét', createdAt: '2024-02-10', tradesCount: 18 },
-  { id: 3, name: 'Pre-Trade Checklist', category: 'psychology', description: 'Kiểm tra tâm lý trước mỗi lệnh để tránh FOMO.', rules: 'Có setup rõ ràng không?\nRisk dưới 2% chưa?\nCó đang revenge trading?\nSL đã đặt chưa?', createdAt: '2024-03-05', tradesCount: 0 },
-  { id: 4, name: 'Risk Management Basic', category: 'risk', description: 'Nguyên tắc quản lý vốn cơ bản.', rules: 'Risk tối đa 2%/lệnh\nRR tối thiểu 1:2\nKhông giao dịch tin news\nMax 3 lệnh/ngày', createdAt: '2024-01-20', tradesCount: 0 },
+const playbooks = ref(JSON.parse(localStorage.getItem('tz-playbooks')) || [
+  { id: 1, name: 'London Breakout', category: 'setup', description: 'Giao dịch breakout đầu phiên London dựa trên vùng giá châu Á.', rulesList: ['Chờ giá phá vỡ range châu Á', 'Vào lệnh sau nến xác nhận', 'SL trên/dưới range 10 pips', 'TP = 2x risk'], createdAt: '2024-01-15' },
+  { id: 2, name: 'Liquidity Sweep', category: 'setup', description: 'Săn lệnh sau khi giá quét thanh khoản vùng đỉnh/đáy.', rulesList: ['Xác định vùng thanh khoản rõ ràng', 'Chờ phản ứng giá tại vùng', 'Vào lệnh theo hướng phản ứng', 'SL vượt quá vùng quét'], createdAt: '2024-02-10' },
+  { id: 3, name: 'Pre-Trade Checklist', category: 'psychology', description: 'Kiểm tra tâm lý trước mỗi lệnh để tránh FOMO.', rulesList: ['Có setup rõ ràng không?', 'Risk dưới 2% chưa?', 'Có đang revenge trading?', 'SL đã đặt chưa?'], createdAt: '2024-03-05' },
+  { id: 4, name: 'Risk Management Basic', category: 'risk', description: 'Nguyên tắc quản lý vốn cơ bản.', rulesList: ['Risk tối đa 2%/lệnh', 'RR tối thiểu 1:2', 'Không giao dịch tin news', 'Max 3 lệnh/ngày'], createdAt: '2024-01-20' },
 ])
 
 const icons = { grid: '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>', doc: '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>', bars: '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>', wave: '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>', play: '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>', card: '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>', heart: '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l7.78-7.78a5.5 5.5 0 0 0 1.06-8.84z"/></svg>', gear: '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M4.93 4.93l1.41 1.41M12 2v2M12 20v2M2 12h2M20 12h2"/></svg>' }
@@ -86,11 +91,18 @@ function savePlaybook() {
     category: newPlaybook.value.category,
     description: newPlaybook.value.description,
     rulesList: newPlaybook.value.rules.split('\n').filter(Boolean),
-    createdAt: new Date().toISOString().slice(0, 10),
-    tradesCount: 0
+    createdAt: new Date().toISOString().slice(0, 10)
   })
+  localStorage.setItem('tz-playbooks', JSON.stringify(playbooks.value))
   newPlaybook.value = { name: '', category: 'setup', description: '', rules: '' }
   showForm.value = false
+}
+
+function deletePlaybook(id) {
+  if (confirm('Bạn có chắc muốn xóa Playbook này?')) {
+    playbooks.value = playbooks.value.filter(p => p.id !== id)
+    localStorage.setItem('tz-playbooks', JSON.stringify(playbooks.value))
+  }
 }
 
 function toggleTheme() { theme.value = theme.value === 'dark' ? 'light' : 'dark'; localStorage.setItem('tz-theme', theme.value); document.documentElement.setAttribute('data-theme', theme.value) }
@@ -98,7 +110,7 @@ onMounted(() => document.documentElement.setAttribute('data-theme', theme.value)
 </script>
 
 <style scoped>
-.tz-page { --bg: #07070a; --card: #141018; --card2: #1a1320; --border: #2a142a; --primary: #ff2d9a; --primary-glow: rgba(255,45,154,0.18); --primary-dim: rgba(255,45,154,0.08); --hot: #ff4da6; --text: #ffffff; --sub: #b8a8b8; --success: #00d084; --danger: #ff3b7a; --sidebar-w: 220px; --header-h: 64px; --radius: 16px; --font-ui: 'Syne', sans-serif; --font-mono: 'JetBrains Mono', monospace; display: flex; width: 100%; height: 100vh; overflow: hidden; background: var(--bg); color: var(--text); font-family: var(--font-ui); }
+.tz-page { --bg: #07070a; --card: #141018; --card2: #1a1320; --border: #2a142a; --primary: #ff2d9a; --primary-glow: rgba(255,45,154,0.18); --primary-dim: rgba(255,45,154,0.08); --hot: #ff4da6; --text: #ffffff; --sub: #b8a8b8; --success: #00d084; --danger: #ff3b7a; --sidebar-w: 220px; --header-h: 64px; --radius: 16px; --font-ui: 'Plus Jakarta Sans', 'Be Vietnam Pro', sans-serif; --font-mono: 'JetBrains Mono', monospace; display: flex; width: 100%; height: 100vh; overflow: hidden; background: var(--bg); color: var(--text); font-family: var(--font-ui); }
 .tz-page[data-theme='light'] { --bg: #fff7fb; --card: #ffffff; --card2: #fff0f7; --border: #f2d6e6; --primary: #ff3b9d; --primary-glow: rgba(255,59,157,0.1); --primary-dim: rgba(255,59,157,0.05); --hot: #ff3b9d; --text: #17121a; --sub: #6f6472; --success: #00a86b; --danger: #ff3366; }
 .tz-sidebar { width: var(--sidebar-w); min-width: var(--sidebar-w); height: 100vh; display: flex; flex-direction: column; background: var(--card); border-right: 1px solid var(--border); }
 .tz-sidebar-logo { display: flex; align-items: center; gap: 10px; padding: 20px 18px 16px; border-bottom: 1px solid var(--border); }
@@ -146,7 +158,9 @@ onMounted(() => document.documentElement.setAttribute('data-theme', theme.value)
 .tz-pb-rules ul { list-style: none; padding: 0; }
 .tz-pb-rules li { padding: 2px 0; color: var(--sub); }
 .tz-pb-rules li::before { content: '→ '; color: var(--primary); }
-.tz-pb-meta { display: flex; justify-content: space-between; font-size: 10px; color: var(--sub); margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
+.tz-pb-meta { display: flex; justify-content: space-between; align-items: center; font-size: 10px; color: var(--sub); margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
+.tz-btn-delete { background: transparent; border: none; color: var(--danger); cursor: pointer; padding: 2px 4px; font-weight: bold; border-radius: 4px; }
+.tz-btn-delete:hover { background: color-mix(in srgb, var(--danger) 15%, transparent); }
 @media (max-width: 1200px) { .tz-playbook-grid { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 900px) { .tz-page { --sidebar-w: 72px; } .tz-logo-text, .tz-nav-label, .tz-nav-item:not(.active), .tz-user-info, .tz-user-arrow { display: none; } .tz-header { height: auto; flex-direction: column; } .tz-playbook-grid { grid-template-columns: 1fr; } }
 </style>

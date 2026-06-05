@@ -1,0 +1,109 @@
+{
+  "nav": {
+    "platform": "Platform",
+    "pricing": "Pricing",
+    "education": "Education",
+    "login": "Log In",
+    "start_free": "Start Free Trial",
+    "home": "Home"
+  },
+  "sidebar": {
+    "main": "MAIN",
+    "dashboard": "Dashboard",
+    "journal": "Journal",
+    "analytics": "Analytics",
+    "reports": "Reports",
+    "playbook": "Playbook",
+    "tools": "TOOLS",
+    "backtesting": "Backtesting",
+    "replay": "Replay",
+    "accounts": "Accounts",
+    "learn": "LEARN",
+    "mentor_mode": "Mentor Mode",
+    "community": "Community",
+    "settings": "Settings"
+  },
+  "header": {
+    "language": "Language",
+    "dark_mode": "Dark Mode",
+    "light_mode": "Light Mode"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "last_import": "Last import:",
+    "just_now": "Just now",
+    "resync": "Resync",
+    "select_account": "Select Account",
+    "ranges": {
+      "today": "Today",
+      "this_week": "This Week",
+      "this_month": "This Month",
+      "this_year": "This Year",
+      "all_time": "All Time"
+    },
+    "metrics": {
+      "total_pnl": "Total P&L",
+      "win_rate": "Win Rate",
+      "profit_factor": "Profit Factor",
+      "day_win_rate": "Day Win Rate",
+      "avg_win": "Average Win",
+      "avg_loss": "Average Loss",
+      "total_trades": "Total Trades"
+    },
+    "charts": {
+      "cumulative_pnl": "Cumulative P&L",
+      "daily_pnl": "Daily P&L",
+      "zella_score": "Lumina Score",
+      "detailed_performance": "Detailed Performance",
+      "progress_heatmap": "Progress Heatmap"
+    },
+    "tables": {
+      "recent_trades": "Recent Trades"
+    }
+  },
+  "analytics": {
+    "title": "Daily Behavior Analytics",
+    "subtitle": "Isolated daily performance & behavioral insights",
+    "no_data": "No Data Available",
+    "no_data_desc": "No trades found. Connect an MT5 account to begin analysis.",
+    "add_note": "Add note",
+    "net_pnl": "Net P&L",
+    "metrics": {
+      "total_trades": "Total trades",
+      "winrate": "Winrate",
+      "winners": "Winners",
+      "losers": "Losers",
+      "gross_pnl": "Gross P&L",
+      "volume": "Volume",
+      "commissions": "Commissions",
+      "profit_factor": "Profit factor"
+    },
+    "ai_summary": {
+      "title": "AI Daily Behavioral Summary",
+      "actionable_habit": "Actionable Habit:"
+    },
+    "table": {
+      "symbol": "Symbol",
+      "side": "Side",
+      "open_time": "Open Time",
+      "close_time": "Close Time",
+      "entry_price": "Entry Price",
+      "exit_price": "Exit Price",
+      "volume": "Volume",
+      "commission": "Commission",
+      "net_pnl": "Net PnL"
+    },
+    "modal": {
+      "title": "Isolated Trade Analysis",
+      "symbol": "Symbol",
+      "side": "Side",
+      "volume": "Volume",
+      "hold_duration": "Hold Duration",
+      "net_pnl": "Net PnL",
+      "lots": "Lots",
+      "mins": "Mins",
+      "positive_execution": "Positive Execution",
+      "behavioral_warning": "Behavioral Warning"
+    }
+  }
+}

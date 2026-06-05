@@ -3,8 +3,8 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../../stores/useUserStore.js'
 import { useTheme } from '../../composables/useTheme.js'
-import { useI18n } from '../../composables/useI18n.js'
-import LanguageToggle from '../LanguageToggle.vue'
+import { useI18n } from 'vue-i18n'
+import LanguageSwitcher from './LanguageSwitcher.vue'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -40,11 +40,11 @@ function addTrade() { router.push('/journal') }
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
         <div class="notif-badge">3</div>
       </button>
-      <button class="icon-btn" type="button" @click="toggleTheme" :title="isDark ? 'Light mode' : 'Dark mode'">
-        <span>{{ isDark ? 'Moon' : 'Sun' }}</span>
-      </button>
-      <LanguageToggle />
-      <div class="user-avatar" style="width:32px;height:32px;font-size:11px;">{{ (userStore.userName?.[0] || 'T').toUpperCase() }}</div>
+        <button class="icon-btn" type="button" @click="toggleTheme" :title="isDark ? 'Light mode' : 'Dark mode'">
+          <span>{{ isDark ? 'Moon' : 'Sun' }}</span>
+        </button>
+        <LanguageSwitcher />
+        <div class="user-avatar" style="width:32px;height:32px;font-size:11px;">{{ (userStore.userName?.[0] || 'T').toUpperCase() }}</div>
     </div>
   </header>
 </template>

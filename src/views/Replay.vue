@@ -15,6 +15,7 @@
         <div class="tz-header-welcome"><h2>Trade Replay</h2><p>Xem lại lệnh giao dịch với chart mô phỏng</p></div>
         <div class="tz-header-controls">
           <label class="tz-search-bar"><span>⌕</span><input v-model="search" type="text" placeholder="Search trades..." /></label>
+          <LanguageToggle />
           <button class="tz-icon-btn" type="button" @click="toggleTheme"><span class="tz-theme-toggle-knob">{{ theme === 'dark' ? '🌙' : '☀️' }}</span></button>
         </div>
       </header>
@@ -64,6 +65,11 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import Chart from 'chart.js/auto'
 import { fetchMt5MockPayload } from '../mocks/mt5MockApi.js'
+import { apiRequest } from '../lib/api.js'
+import { useUserStore } from '../stores/useUserStore.js'
+import LanguageToggle from '../components/LanguageToggle.vue'
+
+const userStore = useUserStore()
 
 const route = useRoute()
 const theme = ref(localStorage.getItem('tz-theme') || 'dark')
@@ -148,16 +154,24 @@ function resetReplay() {
 onMounted(async () => {
   document.documentElement.setAttribute('data-theme', theme.value)
   try {
-    const mockData = await fetchMt5MockPayload()
-    trades.value = mockData.trades || []
-  } catch (e) { trades.value = [] }
+    const headers = userStore.token ? { Authorization: `Bearer ${userStore.token}` } : {}
+    const data = await apiRequest('/api/trading/exness/analysis', { headers }).catch(() => null)
+    if (data && data.hasData && data.tradeBook && Array.isArray(data.tradeBook.trades)) {
+      trades.value = data.tradeBook.trades
+    } else {
+      const mockData = await fetchMt5MockPayload()
+      trades.value = mockData.trades || []
+    }
+  } catch (e) { 
+    trades.value = [] 
+  }
 })
 
 onBeforeUnmount(() => { if (replayTimer) clearInterval(replayTimer); if (chartInstance) chartInstance.destroy() })
 </script>
 
 <style scoped>
-.tz-page { --bg: #07070a; --card: #141018; --card2: #1a1320; --border: #2a142a; --primary: #ff2d9a; --primary-glow: rgba(255,45,154,0.18); --primary-dim: rgba(255,45,154,0.08); --hot: #ff4da6; --text: #ffffff; --sub: #b8a8b8; --success: #00d084; --danger: #ff3b7a; --sidebar-w: 220px; --header-h: 64px; --radius: 16px; --font-ui: 'Syne', sans-serif; --font-mono: 'JetBrains Mono', monospace; display: flex; width: 100%; height: 100vh; overflow: hidden; background: var(--bg); color: var(--text); font-family: var(--font-ui); }
+.tz-page { --bg: #07070a; --card: #141018; --card2: #1a1320; --border: #2a142a; --primary: #ff2d9a; --primary-glow: rgba(255,45,154,0.18); --primary-dim: rgba(255,45,154,0.08); --hot: #ff4da6; --text: #ffffff; --sub: #b8a8b8; --success: #00d084; --danger: #ff3b7a; --sidebar-w: 220px; --header-h: 64px; --radius: 16px; --font-ui: 'Plus Jakarta Sans', 'Be Vietnam Pro', sans-serif; --font-mono: 'JetBrains Mono', monospace; display: flex; width: 100%; height: 100vh; overflow: hidden; background: var(--bg); color: var(--text); font-family: var(--font-ui); }
 .tz-page[data-theme='light'] { --bg: #fff7fb; --card: #ffffff; --card2: #fff0f7; --border: #f2d6e6; --primary: #ff3b9d; --text: #17121a; --sub: #6f6472; --success: #00a86b; --danger: #ff3366; }
 .tz-sidebar { width: var(--sidebar-w); min-width: var(--sidebar-w); height: 100vh; display: flex; flex-direction: column; background: var(--card); border-right: 1px solid var(--border); }
 .tz-sidebar-logo { display: flex; align-items: center; gap: 10px; padding: 20px 18px 16px; border-bottom: 1px solid var(--border); }

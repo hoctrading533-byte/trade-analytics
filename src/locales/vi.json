@@ -1,0 +1,109 @@
+{
+  "nav": {
+    "platform": "Nền tảng",
+    "pricing": "Bảng giá",
+    "education": "Đào tạo",
+    "login": "Đăng nhập",
+    "start_free": "Bắt đầu Dùng thử",
+    "home": "Trang chủ"
+  },
+  "sidebar": {
+    "main": "CHÍNH",
+    "dashboard": "Bảng điều khiển",
+    "journal": "Nhật ký",
+    "analytics": "Phân tích",
+    "reports": "Báo cáo",
+    "playbook": "Cẩm nang",
+    "tools": "CÔNG CỤ",
+    "backtesting": "Test Ngược",
+    "replay": "Phát lại",
+    "accounts": "Tài khoản",
+    "learn": "HỌC TẬP",
+    "mentor_mode": "Cố vấn AI",
+    "community": "Cộng đồng",
+    "settings": "Cài đặt"
+  },
+  "header": {
+    "language": "Ngôn ngữ",
+    "dark_mode": "Chế độ Tối",
+    "light_mode": "Chế độ Sáng"
+  },
+  "dashboard": {
+    "title": "Bảng điều khiển",
+    "last_import": "Đồng bộ lần cuối:",
+    "just_now": "Vừa xong",
+    "resync": "Đồng bộ lại",
+    "select_account": "Chọn Tài Khoản",
+    "ranges": {
+      "today": "Hôm nay",
+      "this_week": "Tuần này",
+      "this_month": "Tháng này",
+      "this_year": "Năm nay",
+      "all_time": "Tất cả"
+    },
+    "metrics": {
+      "total_pnl": "Tổng Lợi Nhuận",
+      "win_rate": "Tỉ lệ Thắng",
+      "profit_factor": "Hệ số Lợi Nhuận",
+      "day_win_rate": "Tỉ lệ Ngày Thắng",
+      "avg_win": "Thắng Trung Bình",
+      "avg_loss": "Thua Trung Bình",
+      "total_trades": "Tổng số lệnh"
+    },
+    "charts": {
+      "cumulative_pnl": "Lợi Nhuận Tích Lũy",
+      "daily_pnl": "Lợi Nhuận Hàng Ngày",
+      "zella_score": "Điểm Lumina",
+      "detailed_performance": "Hiệu Suất Chi Tiết",
+      "progress_heatmap": "Bản Đồ Nhiệt Độ"
+    },
+    "tables": {
+      "recent_trades": "Lệnh Gần Đây"
+    }
+  },
+  "analytics": {
+    "title": "Phân Tích Hành Vi Ngày",
+    "subtitle": "Báo cáo cô lập hiệu suất & hành vi theo ngày",
+    "no_data": "Không Có Dữ Liệu",
+    "no_data_desc": "Không tìm thấy lệnh nào. Hãy kết nối tài khoản MT5 để bắt đầu.",
+    "add_note": "Thêm ghi chú",
+    "net_pnl": "Lợi nhuận ròng",
+    "metrics": {
+      "total_trades": "Tổng số lệnh",
+      "winrate": "Tỉ lệ thắng",
+      "winners": "Lệnh Thắng",
+      "losers": "Lệnh Thua",
+      "gross_pnl": "Tổng Lãi",
+      "volume": "Khối lượng",
+      "commissions": "Hoa hồng",
+      "profit_factor": "Hệ số LN"
+    },
+    "ai_summary": {
+      "title": "AI Nhận Xét Hành Vi",
+      "actionable_habit": "Hành Động Khắc Phục:"
+    },
+    "table": {
+      "symbol": "Cặp Tiền",
+      "side": "Vị Thế",
+      "open_time": "Mở Lệnh",
+      "close_time": "Đóng Lệnh",
+      "entry_price": "Giá Vào",
+      "exit_price": "Giá Ra",
+      "volume": "Khối Lượng",
+      "commission": "Hoa Hồng",
+      "net_pnl": "Lợi Nhuận"
+    },
+    "modal": {
+      "title": "Phân Tích Lệnh Cô Lập",
+      "symbol": "Cặp Tiền",
+      "side": "Vị Thế",
+      "volume": "Khối Lượng",
+      "hold_duration": "Thời Gian Giữ",
+      "net_pnl": "Lợi Nhuận",
+      "lots": "Lots",
+      "mins": "Phút",
+      "positive_execution": "Hành Vi Tích Cực",
+      "behavioral_warning": "Cảnh Báo Hành Vi"
+    }
+  }
+}

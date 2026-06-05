@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '../../stores/useUserStore.js'
-import { useI18n } from '../../composables/useI18n.js'
+import { useI18n } from 'vue-i18n'
 
 const route = useRoute()
 const router = useRouter()
@@ -17,30 +17,31 @@ const defaultIcon = 'M12 3v14M4 9l8-6 8 6'
 
 const menuGroups = [
   {
-    labelKey: 'nav.main',
+    labelKey: 'sidebar.main',
     items: [
-      { key: 'dashboard', labelKey: 'nav.dashboard', to: '/dashboard', icon: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>' },
-      { key: 'journal', labelKey: 'nav.journal', to: '/journal', icon: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>' },
-      { key: 'analytics', labelKey: 'nav.analytics', to: '/lich-su-giao-dich', icon: '<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>' },
-      { key: 'reports', labelKey: 'nav.reports', to: '/co-hoi', icon: '<path d="M9 17H5a2 2 0 0 0-2 2"/><path d="M21 17h-4a2 2 0 0 0-2 2"/><path d="M12 3v14"/><path d="M4 9l8-6 8 6"/>' },
-      { key: 'playbook', labelKey: 'nav.playbook', to: '/playbook', icon: '<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>' }
+      { key: 'dashboard', labelKey: 'sidebar.dashboard', to: '/dashboard', icon: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>' },
+      { key: 'journal', labelKey: 'sidebar.journal', to: '/journal', icon: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>' },
+      { key: 'analytics', labelKey: 'sidebar.analytics', to: '/phan-tich', icon: '<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>' },
+      { key: 'propGuardian', labelKey: 'sidebar.propGuardian', to: '/prop-guardian', icon: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>' },
+      { key: 'reports', labelKey: 'sidebar.reports', to: '/co-hoi', icon: '<path d="M9 17H5a2 2 0 0 0-2 2"/><path d="M21 17h-4a2 2 0 0 0-2 2"/><path d="M12 3v14"/><path d="M4 9l8-6 8 6"/>' },
+      { key: 'playbook', labelKey: 'sidebar.playbook', to: '/playbook', icon: '<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>' }
     ]
   },
   {
-    labelKey: 'nav.tools',
+    labelKey: 'sidebar.tools',
     items: [
-      { key: 'backtesting', labelKey: 'nav.backtesting', to: '/backtesting', icon: '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>' },
-      { key: 'replay', labelKey: 'nav.replay', to: '/replay', icon: '<polygon points="5 3 19 12 5 21 5 3"/>' },
-      { key: 'accounts', labelKey: 'nav.accounts', to: '/ket-noi-may-chu', icon: '<rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>' }
+      { key: 'backtesting', labelKey: 'sidebar.backtesting', to: '/backtesting', icon: '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>' },
+      { key: 'replay', labelKey: 'sidebar.replay', to: '/replay', icon: '<polygon points="5 3 19 12 5 21 5 3"/>' },
+      { key: 'accounts', labelKey: 'sidebar.accounts', to: '/ket-noi-may-chu', icon: '<rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>' }
     ]
   },
   {
-    labelKey: 'nav.learn',
+    labelKey: 'sidebar.learn',
     items: [
-      { key: 'mentor', labelKey: 'nav.mentor', to: '/mentor-mode', icon: '<path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>' },
-      { key: 'community', labelKey: 'nav.community', to: '/bang-xep-hang', icon: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>' },
+      { key: 'mentor', labelKey: 'sidebar.mentor_mode', to: '/mentor-mode', icon: '<path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>' },
+      { key: 'community', labelKey: 'sidebar.community', to: '/bang-xep-hang', icon: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>' },
       { key: 'education', labelKey: 'nav.education', to: '/education', icon: '<path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/>' },
-      { key: 'settings', labelKey: 'nav.settings', to: '/cai-dat', icon: '<circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M4.93 4.93l1.41 1.41M12 2v2M12 20v2M4.93 19.07l1.41-1.41M19.07 19.07l-1.41-1.41M2 12h2M20 12h2"/>' }
+      { key: 'settings', labelKey: 'sidebar.settings', to: '/cai-dat', icon: '<circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M4.93 4.93l1.41 1.41M12 2v2M12 20v2M4.93 19.07l1.41-1.41M19.07 19.07l-1.41-1.41M2 12h2M20 12h2"/>' }
     ]
   }
 ]

@@ -25,7 +25,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useUserStore } from './stores/useUserStore.js'
 import Navbar from './components/Navbar.vue'
@@ -45,6 +45,7 @@ const hideGlobalNav = computed(() => route.meta?.hideGlobalNavbar)
 <style scoped>
 .app-wrap {
   display: flex;
+  flex-direction: row;
   height: 100vh;
   overflow: hidden;
   position: relative;

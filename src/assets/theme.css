@@ -30,7 +30,7 @@
   --lf-glow-card: 0 0 24px rgba(255, 45, 154, 0.12);
   --lf-focus: 0 0 0 3px rgba(255, 45, 154, 0.18);
 
-  --lf-page-bg:
+  --lf-page-bg: 
     radial-gradient(860px 560px at 18% -8%, rgba(255, 45, 154, 0.18), transparent 66%),
     radial-gradient(780px 500px at 96% 6%, rgba(154, 77, 255, 0.15), transparent 62%),
     linear-gradient(180deg, #07070a 0%, #0b0b10 100%);
@@ -91,7 +91,7 @@
   --radius: 16px;
   --sidebar-w: 220px;
   --header-h: 64px;
-  --font-ui: 'Syne', 'Inter', sans-serif;
+  --font-ui: 'Plus Jakarta Sans', 'Be Vietnam Pro', sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
   --shadow-card: var(--lf-shadow);
   --shadow-soft: var(--lf-shadow-soft);

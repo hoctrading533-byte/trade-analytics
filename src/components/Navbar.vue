@@ -2,9 +2,9 @@
 import { computed } from 'vue'
 import { useRouter, RouterLink } from 'vue-router'
 import { useUserStore } from '../stores/useUserStore.js'
-import { useI18n } from '../composables/useI18n.js'
+import { useI18n } from 'vue-i18n'
 import ThemeToggle from './ThemeToggle.vue'
-import LanguageToggle from './LanguageToggle.vue'
+import LanguageSwitcher from './layout/LanguageSwitcher.vue'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -38,38 +38,41 @@ function logout() {
 
     <div class="nav-links">
       <template v-if="userStore.isLoggedIn">
-        <RouterLink to="/dashboard" class="nav-link">{{ t('nav.dashboard') }}</RouterLink>
-        <RouterLink to="/prop-guardian" class="nav-link">{{ t('nav.propGuardian') }}</RouterLink>
-        <RouterLink to="/ket-noi-may-chu" class="nav-link">{{ t('nav.server') }}</RouterLink>
-        <RouterLink to="/lich-su-giao-dich" class="nav-link">{{ t('nav.history') }}</RouterLink>
-        <RouterLink to="/journal" class="nav-link">{{ t('nav.journal') }}</RouterLink>
-        <RouterLink to="/co-hoi" class="nav-link">{{ t('nav.opportunities') }}</RouterLink>
-        <RouterLink to="/cai-dat" class="nav-link">{{ t('nav.settings') }}</RouterLink>
-        <RouterLink v-if="userStore.isAdmin" to="/admin" class="nav-link">{{ t('nav.admin') }}</RouterLink>
+        <RouterLink to="/dashboard" class="nav-link">{{ $t('sidebar.dashboard') }}</RouterLink>
+        <RouterLink to="/prop-guardian" class="nav-link">Prop Guardian</RouterLink>
+        <RouterLink to="/ket-noi-may-chu" class="nav-link">{{ $t('sidebar.accounts') }}</RouterLink>
+        <RouterLink to="/journal" class="nav-link">{{ $t('sidebar.journal') }}</RouterLink>
+        <RouterLink to="/cai-dat" class="nav-link">{{ $t('sidebar.settings') }}</RouterLink>
       </template>
       <template v-else>
-        <RouterLink to="/login" class="nav-link">{{ t('nav.login') }}</RouterLink>
-        <RouterLink to="/register" class="nav-link">{{ t('nav.register') }}</RouterLink>
+        <RouterLink to="/" class="nav-link">{{ $t('nav.home') }}</RouterLink>
+        <RouterLink to="/platform" class="nav-link">{{ $t('nav.platform') }}</RouterLink>
+        <RouterLink to="/pricing" class="nav-link">{{ $t('nav.pricing') }}</RouterLink>
+        <RouterLink to="/education" class="nav-link">{{ $t('nav.education') }}</RouterLink>
       </template>
     </div>
 
-    <div class="nav-right">
+    <div class="nav-actions">
       <ThemeToggle />
-      <LanguageToggle />
-      <div class="user-badge">
-        <div class="avatar">{{ avatarLetter }}</div>
-        <div class="user-info">
-          <div class="user-name">{{ userStore.userName }}</div>
-          <div class="user-role">
-            <span>{{ profileTitle }}</span>
-            <span class="plan-chip" :class="planTone">{{ planCode }}</span>
+      <LanguageSwitcher />
+      
+      <template v-if="userStore.isLoggedIn">
+        <div class="nav-user" @click="logout" title="Logout">
+          <div class="avatar">{{ avatarLetter }}</div>
+          <div class="user-info">
+            <span class="plan-badge" :class="planTone">{{ planCode }}</span>
+            <span class="user-title">{{ profileTitle }}</span>
           </div>
         </div>
-        <button v-if="userStore.isLoggedIn" class="logout-btn" @click="logout">{{ t('nav.logout') }}</button>
-      </div>
+      </template>
+      <template v-else>
+        <RouterLink to="/login" class="nav-link login-btn">{{ $t('nav.login') }}</RouterLink>
+        <RouterLink to="/register" class="nav-btn primary">{{ $t('nav.start_free') }}</RouterLink>
+      </template>
     </div>
   </nav>
 </template>
+
 
 <style scoped>
 .nav-link {

@@ -1,12 +1,14 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
-import { RouterLink, useRoute } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { apiRequest } from '../lib/api.js'
 import { useUserStore } from '../stores/useUserStore.js'
 import { useUiStore } from '../stores/useUiStore.js'
 import { useI18n } from '../composables/useI18n.js'
+import LanguageToggle from '../components/LanguageToggle.vue'
 
 const route = useRoute()
+const router = useRouter()
 const userStore = useUserStore()
 const uiStore = useUiStore()
 const { t } = useI18n()
@@ -129,6 +131,11 @@ function toggleLocale() {
   uiStore.toggleLocale()
 }
 
+function logout() {
+  userStore.logout()
+  router.push('/login')
+}
+
 const icons = {
   grid: '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>',
   doc: '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>',
@@ -188,6 +195,7 @@ onMounted(() => {
           <button class="tz-btn-filter" :disabled="loading" @click="loadProfile">
             {{ loading ? 'Đang tải...' : 'Làm mới' }}
           </button>
+          <LanguageToggle />
           <button class="tz-icon-btn" type="button" @click="toggleTheme"><span class="tz-theme-toggle-knob">{{ theme === 'dark' ? '🌙' : '☀️' }}</span></button>
         </div>
       </header>
@@ -256,6 +264,16 @@ onMounted(() => {
                 <button class="btn ghost" @click="toggleLocale">Chuyển ngôn ngữ</button>
               </div>
             </article>
+
+            <article class="card full" style="border-color: rgba(255, 59, 122, 0.3);">
+              <h3 style="color: var(--danger);">Quản lý phiên đăng nhập</h3>
+              <p class="card-sub">Đăng xuất khỏi ứng dụng LuminaFox trên thiết bị này.</p>
+              <div class="actions" style="margin-top: 10px;">
+                <button class="btn primary" style="background: var(--danger); box-shadow: 0 0 16px rgba(255, 59, 122, 0.3);" @click="logout">
+                  Đăng xuất tài khoản
+                </button>
+              </div>
+            </article>
           </div>
         </div>
       </main>
@@ -264,7 +282,7 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.tz-page { --bg: #07070a; --card: #141018; --card2: #1a1320; --border: #2a142a; --primary: #ff2d9a; --primary-glow: rgba(255,45,154,0.18); --primary-dim: rgba(255,45,154,0.08); --hot: #ff4da6; --text: #ffffff; --sub: #b8a8b8; --success: #00d084; --danger: #ff3b7a; --sidebar-w: 220px; --header-h: 64px; --radius: 16px; --font-ui: 'Syne', sans-serif; --font-mono: 'JetBrains Mono', monospace; display: flex; width: 100%; height: 100vh; overflow: hidden; background: var(--bg); color: var(--text); font-family: var(--font-ui); }
+.tz-page { --bg: #07070a; --card: #141018; --card2: #1a1320; --border: #2a142a; --primary: #ff2d9a; --primary-glow: rgba(255,45,154,0.18); --primary-dim: rgba(255,45,154,0.08); --hot: #ff4da6; --text: #ffffff; --sub: #b8a8b8; --success: #00d084; --danger: #ff3b7a; --sidebar-w: 220px; --header-h: 64px; --radius: 16px; --font-ui: 'Plus Jakarta Sans', 'Be Vietnam Pro', sans-serif; --font-mono: 'JetBrains Mono', monospace; display: flex; width: 100%; height: 100vh; overflow: hidden; background: var(--bg); color: var(--text); font-family: var(--font-ui); }
 .tz-page[data-theme='light'] { --bg: #fff7fb; --card: #ffffff; --card2: #fff0f7; --border: #f2d6e6; --primary: #ff3b9d; --primary-glow: rgba(255,59,157,0.1); --primary-dim: rgba(255,59,157,0.05); --hot: #ff3b9d; --text: #17121a; --sub: #6f6472; --success: #00a86b; --danger: #ff3366; }
 .tz-sidebar { width: var(--sidebar-w); min-width: var(--sidebar-w); height: 100vh; display: flex; flex-direction: column; background: var(--card); border-right: 1px solid var(--border); }
 .tz-sidebar-logo { display: flex; align-items: center; gap: 10px; padding: 20px 18px 16px; border-bottom: 1px solid var(--border); }

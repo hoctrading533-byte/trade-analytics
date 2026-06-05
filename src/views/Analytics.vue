@@ -1,618 +1,686 @@
 <template>
-  <div class="tz-page" :data-theme="theme">
-    <aside class="tz-sidebar">
-      <div class="tz-sidebar-logo">
-        <div class="tz-logo-icon">LF</div>
-        <div class="tz-logo-text">Lumina<span>Fox</span></div>
+<div class="tz-dashboard-page">
+  <header class="tz-header">
+    <div class="tz-header-left">
+      <h1>{{ $t('analytics.title') }}</h1>
+      <div class="tz-last-import">
+        <span>{{ $t('analytics.subtitle') }}</span>
       </div>
-      <nav class="tz-nav-section">
-        <div v-for="section in navSections" :key="section.label" class="tz-nav-group">
-          <div class="tz-nav-label">{{ section.label }}</div>
-          <RouterLink v-for="item in section.items" :key="item.label" class="tz-nav-item" :class="{ active: isNavActive(item) }" :to="item.to">
-            <span class="tz-nav-icon" v-html="item.icon"></span>
-            {{ item.label }}
-          </RouterLink>
-        </div>
-      </nav>
-      <div class="tz-sidebar-user">
-        <div class="tz-user-avatar">TA</div>
-        <div class="tz-user-info">
-          <div class="tz-user-name">Trader Alex</div>
-          <div class="tz-user-plan">Premium Pro</div>
-        </div>
-        <span class="tz-user-arrow">›</span>
+    </div>
+    <div class="tz-header-right">
+      <!-- Theme knob if needed, but App.vue might already handle global theme -->
+    </div>
+  </header>
+
+  <div class="tz-dashboard-content" style="padding-top: 24px; padding-bottom: 60px;">
+    <!-- Error Boundary -->
+    <div v-if="renderError" style="background: rgba(255,0,0,0.1); color: #ff3366; padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #ff3366;">
+      <h3>Runtime Error!</h3>
+      <pre>{{ renderError.message }}</pre>
+    </div>
+
+    <!-- Skeleton Loading State -->
+    <div v-if="loading" style="padding: 20px;">
+      <div class="skeleton-pulse" style="height: 100px; background: var(--lf-card-bg); border-radius: 12px; margin-bottom: 16px;"></div>
+      <div class="an-r2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+        <div class="skeleton-pulse" style="height: 200px; background: var(--lf-card-bg); border-radius: 12px;"></div>
+        <div class="skeleton-pulse" style="height: 200px; background: var(--lf-card-bg); border-radius: 12px;"></div>
       </div>
-    </aside>
+    </div>
 
-    <div class="tz-main">
-      <header class="tz-header">
-        <div class="tz-header-welcome">
-          <h2>{{ t('analytics.title') }}</h2>
-          <p>{{ t('analytics.subtitle') }}</p>
+    <!-- Empty State -->
+    <div v-else-if="!currentDayStat && !tradeRows.length" class="empty-state">
+      <div style="font-size: 40px; margin-bottom: 16px;">📊</div>
+      <h3 style="font-size: 16px; margin-bottom: 8px;">{{ $t('analytics.no_data') }}</h3>
+      <p style="color: var(--lf-text-muted); font-size: 13px;">{{ $t('analytics.no_data_desc') }}</p>
+    </div>
+
+    <!-- Daily Report Content -->
+    <template v-else-if="currentDayStat">
+      <!-- Daily Header -->
+      <div class="daily-header">
+        <div class="daily-nav">
+          <button class="nav-btn" @click="prevDay" :disabled="currentIndex >= availableDates.length - 1">‹</button>
+          <h2 class="daily-title">
+            {{ formattedDate }}
+            <span :class="currentDayStat.netProfit >= 0 ? 'pos' : 'neg'" style="margin-left: 12px;">
+              {{ $t('analytics.net_pnl') }} {{ money(currentDayStat.netProfit || 0) }}
+            </span>
+          </h2>
+          <button class="nav-btn" @click="nextDay" :disabled="currentIndex <= 0">›</button>
         </div>
-        <div class="tz-header-controls">
-          <button class="tz-btn-filter" type="button" @click="switchMode">
-            {{ deepMode ? t('analytics.overviewMode') : t('analytics.detailMode') }}
-          </button>
-          <RouterLink class="tz-btn-add" to="/journal">{{ t('analytics.addTrade') }}</RouterLink>
-          <label class="tz-search-bar">
-            <span>⌕</span>
-            <input v-model="search" type="text" :placeholder="t('analytics.searchPlaceholder')" />
-          </label>
-          <button class="tz-icon-btn" type="button" title="Toggle theme" @click="toggleTheme">
-            <span class="tz-theme-toggle-knob">{{ theme === 'dark' ? '🌙' : '☀️' }}</span>
-          </button>
+        <button class="tz-btn-outline">✎ {{ $t('analytics.add_note') }}</button>
+      </div>
+
+      <!-- Top Panel (Chart + Metrics) -->
+      <div class="daily-top-panel">
+        <div class="equity-chart-container">
+          <canvas ref="eqChartRef"></canvas>
         </div>
-      </header>
-
-      <main class="tz-dashboard">
-        <div class="tz-metrics-grid">
-          <article v-for="m in summaryMetrics" :key="m.label" class="tz-metric-card" :class="{ highlight: m.highlight }">
-            <div class="tz-metric-label">{{ m.label }}</div>
-            <div class="tz-metric-value" :class="m.tone">{{ m.value }}</div>
-            <div class="tz-metric-change" :class="m.tone">{{ m.sub }}</div>
-          </article>
-        </div>
-
-        <section v-if="!deepMode" class="tz-row tz-row-1">
-          <article class="tz-chart-card" style="grid-column: 1 / 3;">
-            <div class="tz-chart-header">
-              <div class="tz-chart-title">{{ t('analytics.pnlBySetup') }}</div>
-              <select class="tz-select" v-model="setupFilter">
-                <option value="all">{{ t('analytics.allSetups') }}</option>
-                <option v-for="s in setupNames" :key="s" :value="s">{{ s }}</option>
-              </select>
-            </div>
-            <div class="tz-analytics-panel">
-              <div class="tz-setup-list">
-                <div v-for="s in filteredSetups" :key="s.name" class="tz-setup-item">
-                  <div class="tz-setup-name">{{ s.name }} <span>{{ s.count }} trades</span></div>
-                  <div class="tz-setup-bar-bg"><div class="tz-setup-bar" :style="{ width: s.width, background: s.color }"></div></div>
-                  <div class="tz-setup-stats">
-                    <span>Win: {{ s.winRate.toFixed(1) }}%</span>
-                    <span>PnL: <b :class="s.pnl >= 0 ? 'success' : 'danger'">{{ money(s.pnl) }}</b></span>
-                    <span>Avg R: {{ s.avgR.toFixed(2) }}R</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </article>
-
-          <article class="tz-chart-card">
-            <div class="tz-chart-header"><div class="tz-chart-title">{{ t('analytics.distributionTitle') }}</div></div>
-            <div class="tz-distribution-wrap">
-              <canvas ref="distRef"></canvas>
-            </div>
-          </article>
-
-          <article class="tz-chart-card">
-            <div class="tz-chart-header"><div class="tz-chart-title">{{ t('analytics.behaviorTitle') }}</div></div>
-            <div class="tz-behavior-summary">
-              <div class="tz-behavior-score">
-                <div class="tz-bs-ring">
-                  <svg viewBox="0 0 36 36">
-                    <path class="tz-bs-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
-                    <path class="tz-bs-fill" :stroke-dasharray="`${behaviorScore}, 100`" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
-                  </svg>
-                  <div class="tz-bs-center">{{ behaviorScore.toFixed(0) }}</div>
-                </div>
-              </div>
-              <ul class="tz-bs-list">
-                <li v-for="msg in behaviorMessages" :key="msg">{{ msg }}</li>
-              </ul>
-            </div>
-          </article>
-        </section>
-
-        <section v-if="!deepMode" class="tz-row tz-row-2">
-          <article class="tz-chart-card">
-            <div class="tz-chart-header"><div class="tz-chart-title">{{ locale === 'en' ? 'Detailed Performance Metrics' : 'Performance Metrics chi tiết' }}</div></div>
-            <div class="tz-analytics-table">
-              <table class="tz-atable">
-                <thead>
-                  <tr><th>Metric</th><th>Value</th><th>Metric</th><th>Value</th></tr>
-                </thead>
-                <tbody>
-                  <tr v-for="pair in metricPairs" :key="pair[0].label">
-                    <td class="tz-alabel">{{ pair[0].label }}</td>
-                    <td :class="pair[0].cls">{{ pair[0].value }}</td>
-                    <td class="tz-alabel">{{ pair[1].label }}</td>
-                    <td :class="pair[1].cls">{{ pair[1].value }}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </article>
-
-          <article class="tz-chart-card">
-            <div class="tz-chart-header">
-              <div class="tz-chart-title">{{ t('analytics.symbolStrategyTitle') }}</div>
-              <select class="tz-select" v-model="analysisTab">
-                <option value="symbol">{{ locale === 'en' ? 'By Symbol' : 'Theo Symbol' }}</option>
-                <option value="strategy">{{ locale === 'en' ? 'By Strategy' : 'Theo Chiến lược' }}</option>
-                <option value="session">{{ locale === 'en' ? 'By Session' : 'Theo Phiên' }}</option>
-                <option value="emotion">{{ locale === 'en' ? 'By Emotion' : 'Theo Cảm xúc' }}</option>
-              </select>
-            </div>
-            <div class="tz-grouped-list">
-              <div v-for="g in groupedAnalysis" :key="g.key" class="tz-group-row">
-                <div class="tz-group-info">
-                  <strong>{{ g.key }}</strong>
-                  <span>{{ g.trades }} {{ locale === 'en' ? 'trades' : 'lệnh' }} · {{ g.winRate.toFixed(1) }}% WR</span>
-                </div>
-                <div class="tz-group-bar-bg"><div class="tz-group-bar" :style="{ width: g.barWidth, background: g.pnl >= 0 ? 'var(--success)' : 'var(--danger)' }"></div></div>
-                <div class="tz-group-pnl" :class="g.pnl >= 0 ? 'success' : 'danger'">{{ money(g.pnl) }}</div>
-              </div>
-            </div>
-          </article>
-
-          <article class="tz-chart-card">
-            <div class="tz-chart-header"><div class="tz-chart-title">{{ t('analytics.streaksHoldingTitle') }}</div></div>
-            <div class="tz-streaks-wrap">
-              <div class="tz-streaks-grid">
-                <div class="tz-streak-item success">
-                  <label>{{ t('analytics.maxWins') }}</label>
-                  <strong>{{ analysis.maxConsecutiveWins || 0 }} {{ locale === 'en' ? 'trades' : 'lệnh' }}</strong>
-                </div>
-                <div class="tz-streak-item danger">
-                  <label>{{ t('analytics.maxLosses') }}</label>
-                  <strong>{{ analysis.maxConsecutiveLosses || 0 }} {{ locale === 'en' ? 'trades' : 'lệnh' }}</strong>
-                </div>
-              </div>
-              
-              <div class="tz-holding-table-title">{{ t('analytics.holdingPerformance') }}</div>
-              <div class="tz-holding-list">
-                <div class="tz-holding-row">
-                  <span>{{ t('analytics.shortHolding') }}</span>
-                  <span>{{ analysis.holdingTimePerformance?.short?.trades || 0 }} {{ locale === 'en' ? 'trades' : 'lệnh' }}</span>
-                  <span>WR: {{ analysis.holdingTimePerformance?.short?.winRate || 0 }}%</span>
-                  <span :class="(analysis.holdingTimePerformance?.short?.pnl || 0) >= 0 ? 'success' : 'danger'">
-                    {{ money(analysis.holdingTimePerformance?.short?.pnl) }}
-                  </span>
-                </div>
-                <div class="tz-holding-row">
-                  <span>{{ t('analytics.mediumHolding') }}</span>
-                  <span>{{ analysis.holdingTimePerformance?.medium?.trades || 0 }} {{ locale === 'en' ? 'trades' : 'lệnh' }}</span>
-                  <span>WR: {{ analysis.holdingTimePerformance?.medium?.winRate || 0 }}%</span>
-                  <span :class="(analysis.holdingTimePerformance?.medium?.pnl || 0) >= 0 ? 'success' : 'danger'">
-                    {{ money(analysis.holdingTimePerformance?.medium?.pnl) }}
-                  </span>
-                </div>
-                <div class="tz-holding-row">
-                  <span>{{ t('analytics.longHolding') }}</span>
-                  <span>{{ analysis.holdingTimePerformance?.long?.trades || 0 }} {{ locale === 'en' ? 'trades' : 'lệnh' }}</span>
-                  <span>WR: {{ analysis.holdingTimePerformance?.long?.winRate || 0 }}%</span>
-                  <span :class="(analysis.holdingTimePerformance?.long?.pnl || 0) >= 0 ? 'success' : 'danger'">
-                    {{ money(analysis.holdingTimePerformance?.long?.pnl) }}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </article>
-        </section>
-
-        <section v-if="deepMode" class="tz-deep-panel">
-          <div class="tz-deep-controls">
-            <div class="tz-chart-title">{{ t('analytics.executionDetails') }}</div>
-            <label class="tz-search-bar">
-              <span>⌕</span>
-              <input v-model="search" type="text" :placeholder="locale === 'en' ? 'Filter by symbol, strategy...' : 'Lọc theo symbol, chiến lược...'" />
-            </label>
+        
+        <div class="metrics-grid">
+          <div class="metric">
+            <div class="m-label">{{ $t('analytics.metrics.total_trades') }}</div>
+            <div class="m-val">{{ currentDayStat.totalTrades || 0 }}</div>
+            <div class="m-label" style="margin-top: 16px;">{{ $t('analytics.metrics.winrate') }}</div>
+            <div class="m-val">{{ winrate }}%</div>
           </div>
-          <div class="tz-deep-trades">
-            <article v-for="trade in filteredDeepTrades" :key="trade.id || trade.symbol + trade.exitTime" class="tz-deep-card" :class="{ expanded: selectedTrade === trade }" @click="selectedTrade = selectedTrade === trade ? null : trade">
-              <div class="tz-deep-head">
-                <div class="tz-deep-symbol">{{ trade.symbol || '--' }}</div>
-                <span class="tz-side-label" :class="String(trade.side || '').toLowerCase() === 'short' ? 'danger' : 'success'">{{ trade.side || '--' }}</span>
-                <div class="tz-deep-pnl" :class="num(trade.profit || trade.pnl) >= 0 ? 'success' : 'danger'">{{ money(trade.profit || trade.pnl) }}</div>
-                <div class="tz-deep-r">R: {{ trade.rMultiple ? trade.rMultiple.toFixed(2) : trade.r ? trade.r : '--' }}</div>
-                <span class="tz-deep-expand">{{ selectedTrade === trade ? '▲' : '▼' }}</span>
-              </div>
-              <div v-if="selectedTrade === trade" class="tz-deep-body">
-                <div class="tz-deep-grid">
-                  <div><label>Entry</label><span>{{ trade.entryPrice || trade.entry || '--' }}</span></div>
-                  <div><label>Exit</label><span>{{ trade.exitPrice || trade.exit || '--' }}</span></div>
-                  <div><label>Volume</label><span>{{ trade.volume || '--' }}</span></div>
-                  <div><label>SL</label><span>{{ trade.stopLoss || trade.sl || '--' }}</span></div>
-                  <div><label>TP</label><span>{{ trade.takeProfit || trade.tp || '--' }}</span></div>
-                  <div><label>Risk</label><span>{{ money(trade.riskAmount || trade.risk) }}</span></div>
-                  <div><label>RR Plan</label><span>{{ trade.rr ? trade.rr.toFixed(2) : '--' }}</span></div>
-                  <div><label>Hold Time</label><span>{{ trade.holdingMinutes ? `${trade.holdingMinutes}m` : '--' }}</span></div>
-                  <div><label>Session</label><span>{{ trade.session || '--' }}</span></div>
-                  <div><label>Strategy</label><span>{{ trade.strategyTag || '--' }}</span></div>
-                  <div><label>Emotion</label><span>{{ trade.emotionTag || '--' }}</span></div>
-                  <div><label>Condition</label><span>{{ trade.marketCondition || '--' }}</span></div>
-                </div>
-                <div class="tz-deep-metrics">
-                  <div class="tz-dm-item" :class="trade.executionScore >= 70 ? 'success' : trade.executionScore >= 40 ? 'warn' : 'danger'">
-                    {{ t('analytics.executionScore') }}: {{ trade.executionScore }}/100
-                  </div>
-                  <div v-if="!(trade.stopLoss || trade.sl)" class="tz-dm-item danger">
-                    {{ t('analytics.noSlBadge') }}
-                  </div>
-                  <div v-if="trade.slRemoved" class="tz-dm-item danger">
-                    {{ t('analytics.slRemovedBadge') }}
-                  </div>
-                  <div v-if="trade.emotionTag === 'FOMO' || trade.emotionTag === 'Revenge'" class="tz-dm-item warn">
-                    {{ t('analytics.emotionalBadge', { emotion: trade.emotionTag }) }}
-                  </div>
-                  <div class="tz-dm-item" :class="num(trade.profit || trade.pnl) >= 0 ? 'success' : 'danger'">
-                    MAE: {{ money(trade.mae) }}
-                  </div>
-                  <div class="tz-dm-item" :class="num(trade.profit || trade.pnl) >= 0 ? 'success' : 'danger'">
-                    MFE: {{ money(trade.mfe) }}
-                  </div>
-                </div>
-                <div v-if="trade.notes" class="tz-deep-notes">{{ trade.notes }}</div>
-              </div>
-            </article>
-            <p v-if="!filteredDeepTrades.length" class="tz-empty">{{ t('analytics.empty') }}</p>
+          <div class="metric">
+            <div class="m-label">{{ $t('analytics.metrics.winners') }}</div>
+            <div class="m-val pos">{{ currentDayStat.winners || 0 }}</div>
+            <div class="m-label" style="margin-top: 16px;">{{ $t('analytics.metrics.losers') }}</div>
+            <div class="m-val neg">{{ currentDayStat.losers || 0 }}</div>
           </div>
-        </section>
-      </main>
+          <div class="metric">
+            <div class="m-label">{{ $t('analytics.metrics.gross_pnl') }}</div>
+            <div class="m-val" :class="(currentDayStat.grossProfit || 0) >= 0 ? 'pos' : 'neg'">
+              {{ money(currentDayStat.grossProfit || 0) }}
+            </div>
+            <div class="m-label" style="margin-top: 16px;">{{ $t('analytics.metrics.volume') }}</div>
+            <div class="m-val">{{ (currentDayStat.volume || 0).toFixed(2) }}</div>
+          </div>
+          <div class="metric">
+            <div class="m-label">{{ $t('analytics.metrics.commissions') }}</div>
+            <div class="m-val">{{ money(currentDayStat.commission || 0) }}</div>
+            <div class="m-label" style="margin-top: 16px;">{{ $t('analytics.metrics.profit_factor') }}</div>
+            <div class="m-val">{{ profitFactor }}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- AI Daily Summary -->
+      <div class="tz-card neon-card" style="margin-bottom: 24px; padding: 20px;">
+        <div class="card-title mb-3" style="display: flex; align-items: center; gap: 8px; color: var(--lf-primary);">
+          <span style="font-size: 18px;">✨</span> <span>{{ $t('analytics.ai_summary.title') }}</span>
+        </div>
+        <div style="font-size: 14px; line-height: 1.6; color: var(--lf-text-body);">
+          <p style="margin-bottom: 12px;">{{ aiDailySummary.summary }}</p>
+          <div v-if="aiDailySummary.action" style="background: rgba(255,0,127,0.1); padding: 12px; border-left: 3px solid var(--lf-primary); border-radius: 4px;">
+            <strong>💡 {{ $t('analytics.ai_summary.actionable_habit') }}</strong> {{ aiDailySummary.action }}
+          </div>
+        </div>
+      </div>
+
+      <!-- Trades Table -->
+      <div class="tz-card pnl-chart-card neon-card">
+        <div class="table-container" style="overflow-x: auto; padding-bottom: 24px;">
+          <table class="tz-table" style="min-width: 900px; width: 100%;">
+            <thead>
+              <tr>
+                <th>{{ $t('analytics.table.symbol') }}</th>
+                <th>{{ $t('analytics.table.side') }}</th>
+                <th>{{ $t('analytics.table.open_time') }}</th>
+                <th>{{ $t('analytics.table.close_time') }}</th>
+                <th>{{ $t('analytics.table.entry_price') }}</th>
+                <th>{{ $t('analytics.table.exit_price') }}</th>
+                <th>{{ $t('analytics.table.volume') }}</th>
+                <th>{{ $t('analytics.table.commission') }}</th>
+                <th style="text-align: right;">{{ $t('analytics.table.net_pnl') }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="trade in dailyTrades" :key="trade.ticket" @click="openTradeModal(trade)" class="hover-row">
+                <td>{{ trade.symbol }}</td>
+                <td>
+                  <span :class="getSideString(trade) === 'buy' ? 'pos-bg' : 'neg-bg'" style="padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: bold;">
+                    {{ getSideString(trade).toUpperCase() }}
+                  </span>
+                </td>
+                <td>{{ getDealOpenTime(trade) }}</td>
+                <td>{{ getDealCloseTime(trade) }}</td>
+                <td>{{ getDealEntryPrice(trade) }}</td>
+                <td>{{ getDealExitPrice(trade) }}</td>
+                <td>{{ trade.volume }}</td>
+                <td>{{ money(trade.commission || trade.fee || 0) }}</td>
+                <td style="text-align: right; font-weight: 700; font-family: monospace;" :class="(trade.pnl || 0) >= 0 ? 'pos' : 'neg'">
+                  {{ (trade.pnl || 0) >= 0 ? '+' : '' }}{{ money(trade.pnl || 0) }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </template>
+  </div>
+
+  <!-- Isolated Trade Analysis Modal -->
+  <div v-if="selectedTrade" class="modal-overlay" @click="selectedTrade = null">
+    <div class="neon-modal" @click.stop>
+      <div class="modal-header">
+        <h2>{{ $t('analytics.modal.title') }} #{{ selectedTrade.ticket }}</h2>
+        <button @click="selectedTrade = null" class="close-btn">×</button>
+      </div>
+      
+      <div class="modal-body">
+        <div class="detail-grid">
+          <div class="detail-item"><span>{{ $t('analytics.modal.symbol') }}</span><strong>{{ selectedTrade.symbol }}</strong></div>
+          <div class="detail-item"><span>{{ $t('analytics.modal.side') }}</span>
+            <strong :class="getSideString(selectedTrade) === 'buy' ? 'pos' : 'neg'">{{ getSideString(selectedTrade).toUpperCase() }}</strong>
+          </div>
+          <div class="detail-item"><span>{{ $t('analytics.modal.volume') }}</span><strong>{{ selectedTrade.volume || 0 }} {{ $t('analytics.modal.lots') }}</strong></div>
+          <div class="detail-item"><span>{{ $t('analytics.modal.hold_duration') }}</span><strong>{{ ((selectedTrade.duration || 0) / 60).toFixed(1) }} {{ $t('analytics.modal.mins') }}</strong></div>
+          <div class="detail-item"><span>{{ $t('analytics.modal.net_pnl') }}</span>
+            <strong style="font-size: 16px;" :class="(selectedTrade.pnl || 0) >= 0 ? 'pos' : 'neg'">
+              {{ (selectedTrade.pnl || 0) >= 0 ? '+' : '' }}{{ money(selectedTrade.pnl || 0) }}
+            </strong>
+          </div>
+        </div>
+
+        <div class="ai-reason-box" :class="selectedTradeInsight.type === 'POSITIVE' ? 'ai-pos' : 'ai-neg'">
+          <div class="ai-reason-title">
+            <span v-if="selectedTradeInsight.type === 'POSITIVE'">✅ {{ $t('analytics.modal.positive_execution') }}</span>
+            <span v-else>⚠️ {{ $t('analytics.modal.behavioral_warning') }}</span>
+          </div>
+          <div class="ai-reason-text">{{ selectedTradeInsight.message }}</div>
+        </div>
+      </div>
     </div>
   </div>
+
+</div>
 </template>
 
 <script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { RouterLink, useRoute, useRouter } from 'vue-router'
-import Chart from 'chart.js/auto'
-import { apiRequest } from '../lib/api.js'
-import { useUserStore } from '../stores/useUserStore.js'
-import { computeTradingMetrics, computeBehaviorScore, computePatterns, computeDistribution, computePerformanceBySetup, computeAnalyticsTable, enrichTrade, num } from '../lib/tradingMetrics.js'
-import { fetchMt5MockPayload } from '../mocks/mt5MockApi.js'
+import { ref, computed, watch, onMounted, nextTick, onErrorCaptured } from 'vue'
+import { Chart, registerables } from 'chart.js'
+import { useJournalStore } from '../stores/useJournalStore.js'
+import { enrichTrade } from '../lib/tradingMetrics.js'
 
-const userStore = useUserStore()
-const route = useRoute()
-const router = useRouter()
-const theme = ref(localStorage.getItem('tz-theme') || 'dark')
-const search = ref('')
-const deepMode = ref(false)
+Chart.register(...registerables)
+
+const journalStore = useJournalStore()
+const loading = computed(() => journalStore.loading)
+const tradeRows = computed(() => journalStore.filteredTrades || [])
+let eqChartInstance = null
+
+const renderError = ref(null)
+onErrorCaptured((err) => {
+  renderError.value = err
+  console.error('Analytics Error:', err)
+  return false // prevent propagating
+})
+
+const eqChartRef = ref(null)
 const selectedTrade = ref(null)
-const setupFilter = ref('all')
-const analysisTab = ref('symbol')
-const loading = ref(false)
-const tradeRows = ref([])
-const distRef = ref(null)
-const chartInstances = []
+const selectedTradeInsight = ref({ type: 'POSITIVE', message: '' })
 
-const icons = {
-  grid: '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>',
-  doc: '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>',
-  bars: '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>',
-  wave: '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>',
-  play: '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>',
-  card: '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>',
-  heart: '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l7.78-7.78a5.5 5.5 0 0 0 1.06-8.84z"/></svg>',
-  gear: '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M4.93 4.93l1.41 1.41M12 2v2M12 20v2M2 12h2M20 12h2"/></svg>'
-}
-
-const navSections = [
-  { label: 'Main', items: [{ label: 'Dashboard', icon: icons.grid, to: '/dashboard' }, { label: 'Journal', icon: icons.doc, to: '/journal' }, { label: 'Analytics', icon: icons.bars, to: '/phan-tich' }, { label: 'Reports', icon: icons.bars, to: '/co-hoi' }, { label: 'Playbook', icon: icons.doc, to: '/playbook' }] },
-  { label: 'Tools', items: [{ label: 'Backtesting', icon: icons.wave, to: '/backtesting' }, { label: 'Replay', icon: icons.play, to: '/replay' }, { label: 'Accounts', icon: icons.card, to: '/ket-noi-may-chu' }] },
-  { label: 'Learn', items: [{ label: 'Mentor Mode', icon: icons.heart, to: '/mentor-mode' }, { label: 'Community', icon: icons.heart, to: '/bang-xep-hang' }, { label: 'Education', icon: icons.doc, to: '/education' }, { label: 'Settings', icon: icons.gear, to: '/cai-dat' }] }
-]
-
-function isNavActive(item) {
-  if (!item.to) return false
-  if (item.to === '/dashboard') return route.path === '/dashboard'
-  return route.path.startsWith(item.to)
-}
-
-const enrichedTrades = computed(() => tradeRows.value.map(t => enrichTrade(t)))
-
-const analysis = computed(() => computeTradingMetrics(enrichedTrades.value))
-const behavior = computed(() => computeBehaviorScore(enrichedTrades.value, analysis.value))
-const behaviorScore = computed(() => behavior.value.behaviorScore)
-const behaviorMessages = computed(() => behavior.value.messages || [])
-
-const patterns = computed(() => computePatterns(analysis.value))
-const distributions = computed(() => computeDistribution(enrichedTrades.value))
-const setupPerformance = computed(() => computePerformanceBySetup(enrichedTrades.value))
-const setupNames = computed(() => setupPerformance.value.map(s => s.key))
-
-const summaryMetrics = computed(() => [
-  { label: 'Net PnL', value: money(analysis.value.netProfit), tone: analysis.value.netProfit >= 0 ? 'success' : 'danger', sub: `${analysis.value.total} trades` },
-  { label: 'Win Rate', value: `${analysis.value.winRate.toFixed(1)}%`, tone: analysis.value.winRate >= 50 ? 'success' : 'danger', sub: `${analysis.value.wins}W / ${analysis.value.losses}L` },
-  { label: 'Profit Factor', value: analysis.value.profitFactor.toFixed(2), tone: analysis.value.profitFactor >= 1.5 ? 'success' : 'warn', sub: `RR ${analysis.value.rr.toFixed(2)}` },
-  { label: 'Expectancy', value: money(analysis.value.expectancy), tone: analysis.value.expectancy >= 0 ? 'success' : 'danger', sub: `${analysis.value.avgR.toFixed(2)}R avg` },
-  { label: 'Kelly %', value: `${analysis.value.kelly || 0}%`, tone: analysis.value.kelly > 20 ? 'success' : 'warn', sub: 'Tỷ lệ Kelly tối ưu' },
-  { label: 'Sizing Rec', value: analysis.value.sizingRecommendation || 'Standard (1.0x)', tone: 'info', sub: 'Khuyến nghị lot' },
-  { label: 'Behavior Score', value: `${behaviorScore.value.toFixed(0)}/100`, tone: behaviorScore.value >= 70 ? 'success' : behaviorScore.value >= 40 ? 'warn' : 'danger', sub: `${behavior.value.disciplineScore.toFixed(0)} discipline` },
-  { label: 'Drawdown', value: `${analysis.value.drawdownPct.toFixed(1)}%`, tone: analysis.value.drawdownPct > 15 ? 'danger' : 'success', sub: money(analysis.value.drawdownAbs) }
-])
-
-const filteredSetups = computed(() => {
-  let list = setupPerformance.value
-  if (setupFilter.value !== 'all') list = list.filter(s => s.key === setupFilter.value)
-  const maxPnl = Math.max(1, ...list.map(s => Math.abs(s.pnl)))
-  return list.map(s => ({
-    name: s.key,
-    count: s.trades,
-    pnl: s.pnl,
-    winRate: s.winRate,
-    avgR: s.trades ? s.pnl / (s.trades * Math.max(Math.abs(s.pnl / s.trades), 1)) * (s.winRate / 100) : 0,
-    width: `${Math.max(8, (Math.abs(s.pnl) / maxPnl) * 100)}%`,
-    color: s.pnl >= 0 ? 'var(--success)' : 'var(--danger)'
-  }))
-})
-
-const metricPairs = computed(() => {
-  const table = computeAnalyticsTable(enrichedTrades.value)
-  const pairs = []
-  for (let i = 0; i < table.length; i += 2) {
-    const left = table[i]
-    const right = table[i + 1] || { label: '', value: '', cls: '' }
-    pairs.push([{ label: left.label, value: left.value, cls: '' }, { label: right.label, value: right.value, cls: '' }])
+// Safe Side formatting for MT5 types (type 0 = buy, type 1 = sell)
+function getSideString(trade) {
+  if (!trade) return 'unknown'
+  if (trade.side) return String(trade.side).toLowerCase()
+  if (trade.type !== undefined) {
+    if (String(trade.type) === '0') return 'buy'
+    if (String(trade.type) === '1') return 'sell'
   }
-  return pairs
-})
-
-const groupedAnalysis = computed(() => {
-  const map = analysisTab.value === 'symbol' ? analysis.value.symbolMap
-    : analysisTab.value === 'strategy' ? analysis.value.strategyMap
-    : analysisTab.value === 'session' ? analysis.value.sessionMap
-    : analysis.value.emotionMap
-  if (!map || !Object.keys(map).length) return []
-  const entries = Object.entries(map).map(([key, val]) => ({ key, ...val, winRate: val.trades ? (val.wins / val.trades) * 100 : 0 }))
-  const maxPnl = Math.max(1, ...entries.map(e => Math.abs(e.pnl)))
-  return entries.sort((a, b) => Math.abs(b.pnl) - Math.abs(a.pnl)).slice(0, 12).map(e => ({
-    ...e,
-    barWidth: `${Math.max(4, (Math.abs(e.pnl) / maxPnl) * 100)}%`
-  }))
-})
-
-const filteredDeepTrades = computed(() => {
-  const q = search.value.trim().toLowerCase()
-  let list = enrichedTrades.value
-  if (q) list = list.filter(t => `${t.symbol || ''} ${t.strategyTag || ''} ${t.session || ''}`.toLowerCase().includes(q))
-  return list.slice(-50).reverse()
-})
-
-function switchMode() {
-  deepMode.value = !deepMode.value
-  selectedTrade.value = null
+  return 'unknown'
 }
 
-function money(value) {
-  const n = num(value)
+// Navigation
+const availableDates = computed(() => {
+  if (!journalStore.dailyStats) return []
+  return [...journalStore.dailyStats].sort((a, b) => {
+    const da = new Date(a.date || 0)
+    const db = new Date(b.date || 0)
+    return (isNaN(db.getTime()) ? 0 : db) - (isNaN(da.getTime()) ? 0 : da)
+  }) // newest first
+})
+
+const currentIndex = ref(0)
+
+const currentDayStat = computed(() => {
+  if (availableDates.value.length === 0) return null
+  if (currentIndex.value >= availableDates.value.length) currentIndex.value = availableDates.value.length - 1
+  if (currentIndex.value < 0) currentIndex.value = 0
+  return availableDates.value[currentIndex.value]
+})
+
+function prevDay() {
+  if (currentIndex.value < availableDates.value.length - 1) currentIndex.value++
+}
+
+function nextDay() {
+  if (currentIndex.value > 0) currentIndex.value--
+}
+
+const formattedDate = computed(() => {
+  if (!currentDayStat.value || !currentDayStat.value.date) return ''
+  try {
+    const d = new Date(currentDayStat.value.date)
+    if (isNaN(d.getTime())) return currentDayStat.value.date
+    return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
+  } catch(e) { return currentDayStat.value.date }
+})
+
+function money(val) {
+  const n = Number(val) || 0;
   return `${n < 0 ? '-' : ''}$${Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
-function toggleTheme() {
-  theme.value = theme.value === 'dark' ? 'light' : 'dark'
+function formatTime(val) {
+  if (!val) return '--:--:--'
+  try {
+    const d = new Date(val)
+    if (isNaN(d.getTime())) return val
+    return d.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' })
+  } catch (e) {
+    return val
+  }
 }
 
-function addChart(canvas, config) {
-  if (!canvas) return
-  const chart = new Chart(canvas.getContext('2d'), config)
-  chartInstances.push(chart)
+function formatPrice(p) {
+  if (p === undefined || p === null || p === '--') return '--'
+  const n = Number(p)
+  if (isNaN(n)) return p
+  return parseFloat(n.toFixed(5)).toString()
 }
 
-function destroyCharts() {
-  while (chartInstances.length) chartInstances.pop().destroy()
+function getDealOpenTime(trade) {
+  if (trade.openTime) return formatTime(trade.openTime)
+  if (trade.entryTime) return formatTime(trade.entryTime)
+  if (trade.time && trade.entry === 0) return formatTime(trade.time * (trade.time < 1e12 ? 1000 : 1))
+  if (trade.time && typeof trade.entry === 'undefined') return formatTime(trade.time * (trade.time < 1e12 ? 1000 : 1))
+  return '--:--:--'
 }
 
-function buildCharts() {
-  destroyCharts()
-  if (!distRef.value) return
-  const labels = distributions.value.map(d => d.key)
-  const counts = distributions.value.map(d => d.count)
-  const colors = labels.map(l => {
-    if (l.startsWith('>') || l.startsWith('+')) return 'rgba(0,208,132,0.7)'
-    if (l.startsWith('<') || l.startsWith('-')) return 'rgba(255,59,122,0.7)'
-    return 'rgba(255,45,154,0.5)'
+function getDealCloseTime(trade) {
+  if (trade.closeTime) return formatTime(trade.closeTime)
+  if (trade.exitTime) return formatTime(trade.exitTime)
+  if (trade.time && trade.entry === 1) return formatTime(trade.time * (trade.time < 1e12 ? 1000 : 1))
+  return '--:--:--'
+}
+
+function getDealEntryPrice(trade) {
+  if (trade.entryPrice !== undefined && trade.entryPrice !== null) return formatPrice(trade.entryPrice)
+  if (trade.price !== undefined && trade.price !== null && trade.entry === 0) return formatPrice(trade.price)
+  if (trade.price !== undefined && trade.price !== null && typeof trade.entry === 'undefined') return formatPrice(trade.price)
+  return '--'
+}
+
+function getDealExitPrice(trade) {
+  if (trade.exitPrice !== undefined && trade.exitPrice !== null) return formatPrice(trade.exitPrice)
+  if (trade.price !== undefined && trade.price !== null && trade.entry === 1) return formatPrice(trade.price)
+  return '--'
+}
+
+// Metrics
+const winrate = computed(() => {
+  if (!currentDayStat.value || !currentDayStat.value.totalTrades) return 0
+  return (((currentDayStat.value.winners || 0) / currentDayStat.value.totalTrades) * 100).toFixed(0)
+})
+
+const profitFactor = computed(() => {
+  if (!currentDayStat.value) return 0
+  const gl = Math.abs(currentDayStat.value.grossLoss || 0)
+  if (gl === 0) return currentDayStat.value.grossProfit > 0 ? 99.99 : 0
+  return ((currentDayStat.value.grossProfit || 0) / gl).toFixed(2)
+})
+
+const dailyTrades = computed(() => {
+  if (!currentDayStat.value) return []
+  const dateStr = currentDayStat.value.date
+  return tradeRows.value
+    .filter(t => {
+      try {
+        const d = new Date(t.closeTime || t.exitTime || t.openTime || Date.now())
+        if (isNaN(d.getTime())) return false
+        const tDate = d.toISOString().split('T')[0]
+        return tDate === dateStr
+      } catch (e) {
+        return false
+      }
+    })
+    .map(t => enrichTrade(t))
+    .sort((a, b) => {
+      const da = new Date(a.closeTime || a.exitTime || 0)
+      const db = new Date(b.closeTime || b.exitTime || 0)
+      return (isNaN(da.getTime()) ? 0 : da) - (isNaN(db.getTime()) ? 0 : db)
+    })
+})
+
+// AI logic
+const aiDailySummary = computed(() => {
+  if (!currentDayStat.value) return { summary: '', action: '' }
+  
+  const total = currentDayStat.value.totalTrades || 0
+  const pnl = currentDayStat.value.netProfit || 0
+  const wr = Number(winrate.value) || 0
+  
+  let summary = `You executed ${total} trades today, resulting in a Net P&L of ${money(pnl)}.`
+  let action = ''
+  
+  if (wr >= 60 && pnl > 0) {
+    summary += ` Excellent precision and strong profitability. You demonstrated good discipline by letting winners run.`
+    action = `Keep doing what you are doing. Review your winning setups to reinforce positive patterns.`
+  } else if (wr < 50 && pnl < 0) {
+    summary += ` Tough session. The market was either uncooperative or execution was poor. Your win rate dropped below optimal levels.`
+    action = `Review your losses to see if they were forced setups. Consider reducing risk tomorrow.`
+  } else if (total > 15 && pnl <= 0) {
+    summary += ` High volume of trades (${total}) with no meaningful profit. This indicates overtrading or churning.`
+    action = `Set a strict limit of 3 trades per session tomorrow.`
+  } else {
+    summary += ` An average session. Focus on eliminating the unnecessary losses to improve the profit factor.`
+  }
+  
+  return { summary, action }
+})
+
+function openTradeModal(trade) {
+  selectedTrade.value = trade
+  
+  // Isolated Analysis
+  const durationMins = (trade.duration || 0) / 60
+  let type = 'POSITIVE'
+  let message = 'Standard execution. Risk was managed appropriately.'
+  
+  if ((trade.pnl || 0) < 0) {
+    if (durationMins > 240) {
+      type = 'WARNING'
+      message = `You held this losing trade for ${durationMins.toFixed(0)} minutes. Holding onto losers in hope they turn around is a massive account killer. Cut losses quickly.`
+    } else if ((trade.volume || 0) > ((currentDayStat.value.volume || 0) / (currentDayStat.value.totalTrades || 1) * 2)) {
+      type = 'WARNING'
+      message = `Oversized position detected. Volume (${trade.volume}) was significantly larger than your daily average. Overleveraging leads to emotional decisions.`
+    } else {
+      type = 'WARNING'
+      message = `Standard loss. Ensure this was taken according to your predefined trading plan and Stop Loss.`
+    }
+  } else {
+    if (durationMins < 1) {
+      type = 'WARNING'
+      message = `Scalp win (held for < 1 min). Ensure you aren't cutting winners too early out of fear.`
+    } else {
+      message = `Great job executing your plan. Letting winners play out is the key to a high profit factor.`
+    }
+  }
+  
+  selectedTradeInsight.value = { type, message }
+}
+
+function buildEquityChart() {
+  if (eqChartInstance) {
+    eqChartInstance.destroy()
+    eqChartInstance = null
+  }
+  
+  if (!eqChartRef.value || dailyTrades.value.length === 0) return
+  
+  const ctx = eqChartRef.value.getContext('2d')
+  
+  const eq = [0] // Start at 0 for daily isolated equity
+  let current = 0
+  const labels = ['Start']
+  
+  dailyTrades.value.forEach((t, i) => {
+    current += (t.pnl || 0)
+    eq.push(current)
+    labels.push(`#${i+1}`)
   })
-  const tickColor = theme.value === 'dark' ? '#B8A8B8' : '#6F6472'
-  addChart(distRef.value, {
-    type: 'bar',
-    data: { labels, datasets: [{ data: counts, backgroundColor: colors, borderRadius: 4, borderSkipped: false }] },
+  
+  const gradient = ctx.createLinearGradient(0, 0, 0, 200)
+  gradient.addColorStop(0, 'rgba(255, 0, 127, 0.4)')
+  gradient.addColorStop(1, 'rgba(255, 0, 127, 0.0)')
+
+  eqChartInstance = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Daily Equity',
+        data: eq,
+        borderColor: '#FF007F',
+        borderWidth: 2,
+        backgroundColor: gradient,
+        fill: true,
+        tension: 0.3,
+        pointRadius: 2,
+        pointBackgroundColor: '#FF007F'
+      }]
+    },
     options: {
-      responsive: true, maintainAspectRatio: false,
+      responsive: true,
+      maintainAspectRatio: false,
       plugins: { legend: { display: false } },
       scales: {
-        x: { grid: { display: false }, ticks: { color: tickColor, font: { size: 9 } } },
-        y: { grid: { color: theme.value === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(23,18,26,0.08)' }, ticks: { color: tickColor, font: { size: 9 } } }
+        x: { grid: { display: false }, ticks: { color: 'var(--lf-text-muted)', font: { size: 10 } } },
+        y: { grid: { color: 'rgba(128,128,128,0.1)' }, ticks: { color: 'var(--lf-text-muted)', font: { size: 10, family: 'monospace' }, callback: v => money(v) } }
       }
     }
   })
 }
 
-watch(theme, async (value) => {
-  localStorage.setItem('tz-theme', value)
-  document.documentElement.setAttribute('data-theme', value)
-  await nextTick()
-  buildCharts()
+watch(currentDayStat, () => {
+  nextTick(() => buildEquityChart())
 })
-
-watch([analysis, distributions], async () => {
-  await nextTick()
-  buildCharts()
-}, { deep: true })
-
-function authHeaders() {
-  return userStore.token ? { Authorization: `Bearer ${userStore.token}` } : {}
-}
-
-async function loadData() {
-  loading.value = true
-  try {
-    const data = await apiRequest('/api/trading/exness/analysis', { headers: authHeaders() })
-    if (data && data.hasData && data.tradeBook && Array.isArray(data.tradeBook.trades) && data.tradeBook.trades.length > 0) {
-      tradeRows.value = data.tradeBook.trades
-    } else {
-      const mockData = await fetchMt5MockPayload()
-      tradeRows.value = mockData.trades || []
-    }
-  } catch (e) {
-    console.error('Không thể tải dữ liệu phân tích MT5 thật, đang dùng dữ liệu mô phỏng (mock):', e)
-    try {
-      const mockData = await fetchMt5MockPayload()
-      tradeRows.value = mockData.trades || []
-    } catch (err) {
-      tradeRows.value = []
-    }
-  } finally {
-    loading.value = false
-  }
-}
 
 onMounted(async () => {
-  document.documentElement.setAttribute('data-theme', theme.value)
-  await loadData()
-  await nextTick()
-  buildCharts()
+  if (!journalStore.accounts || journalStore.accounts.length === 0) {
+    await journalStore.fetchAccounts()
+  }
+  nextTick(() => buildEquityChart())
 })
-
-onBeforeUnmount(destroyCharts)
 </script>
 
 <style scoped>
-.tz-page { --bg: #07070a; --card: #141018; --card2: #1a1320; --border: #2a142a; --primary: #ff2d9a; --primary-glow: rgba(255,45,154,0.18); --primary-dim: rgba(255,45,154,0.08); --hot: #ff4da6; --text: #ffffff; --sub: #b8a8b8; --success: #00d084; --danger: #ff3b7a; --warn: #ffc861; --sidebar-w: 220px; --header-h: 64px; --radius: 16px; --font-ui: 'Syne', sans-serif; --font-mono: 'JetBrains Mono', monospace; display: flex; width: 100%; height: 100vh; overflow: hidden; background: var(--bg); color: var(--text); font-family: var(--font-ui); }
-.tz-page[data-theme='light'] { --bg: #fff7fb; --card: #ffffff; --card2: #fff0f7; --border: #f2d6e6; --primary: #ff3b9d; --primary-glow: rgba(255,59,157,0.1); --primary-dim: rgba(255,59,157,0.05); --hot: #ff3b9d; --text: #17121a; --sub: #6f6472; --success: #00a86b; --danger: #ff3366; --warn: #d58a00; }
-.tz-sidebar { width: var(--sidebar-w); min-width: var(--sidebar-w); height: 100vh; display: flex; flex-direction: column; overflow-y: auto; background: var(--card); border-right: 1px solid var(--border); z-index: 10; }
-.tz-sidebar-logo { display: flex; align-items: center; gap: 10px; padding: 20px 18px 16px; border-bottom: 1px solid var(--border); }
-.tz-logo-icon { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 8px; background: linear-gradient(135deg, var(--primary), var(--hot)); box-shadow: 0 0 16px var(--primary-glow); color: #fff; font-size: 16px; font-weight: 800; }
-.tz-logo-text { color: var(--text); font-size: 16px; font-weight: 700; letter-spacing: -0.3px; }
-.tz-logo-text span { color: var(--primary); }
-.tz-nav-section { flex: 1; padding: 10px 0; }
-.tz-nav-label { padding: 8px 18px 4px; color: var(--sub); font-size: 9px; font-weight: 600; letter-spacing: 1.2px; text-transform: uppercase; }
-.tz-nav-item { position: relative; display: flex; align-items: center; gap: 10px; padding: 9px 18px; color: var(--sub); text-decoration: none; font-size: 13px; font-weight: 500; transition: all 0.18s; }
-.tz-nav-item:hover, .tz-nav-item.active { color: var(--primary); background: var(--primary-dim); font-weight: 600; }
-.tz-nav-item.active::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--primary); border-radius: 0 3px 3px 0; box-shadow: 0 0 8px var(--primary); }
-.tz-nav-icon { width: 16px; height: 16px; display: inline-flex; opacity: 0.8; }
-.tz-sidebar-user { display: flex; align-items: center; gap: 10px; padding: 14px 18px; border-top: 1px solid var(--border); }
-.tz-user-avatar { width: 34px; height: 34px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: linear-gradient(135deg, var(--primary), #a020f0); box-shadow: 0 0 10px var(--primary-glow); color: #fff; font-size: 12px; font-weight: 700; }
-.tz-user-info { flex: 1; min-width: 0; }
-.tz-user-name { overflow: hidden; color: var(--text); font-size: 12px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
-.tz-user-plan { color: var(--primary); font-size: 10px; font-weight: 500; }
-.tz-user-arrow { color: var(--sub); font-size: 24px; line-height: 1; }
-.tz-main { flex: 1; min-width: 0; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
-.tz-header { height: var(--header-h); flex-shrink: 0; display: flex; align-items: center; gap: 12px; padding: 0 20px; background: var(--card); border-bottom: 1px solid var(--border); }
-.tz-header-welcome { flex: 1; }
-.tz-header-welcome h2 { margin: 0; color: var(--text); font-size: 15px; font-weight: 700; line-height: 1; }
-.tz-header-welcome p { margin: 2px 0 0; color: var(--sub); font-size: 11px; }
-.tz-header-controls { display: flex; align-items: center; gap: 8px; }
-.tz-btn-filter, .tz-btn-add, .tz-search-bar, .tz-icon-btn { border: 1px solid var(--border); background: var(--card2); color: var(--text); font-family: var(--font-ui); }
-.tz-btn-filter, .tz-btn-add { display: flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 8px; font-size: 12px; font-weight: 500; cursor: pointer; text-decoration: none; }
-.tz-btn-add { padding: 7px 14px; border: none; background: var(--primary); box-shadow: 0 0 16px var(--primary-glow); color: #fff; font-weight: 600; }
-.tz-search-bar { width: 180px; display: flex; align-items: center; gap: 7px; padding: 7px 12px; border-radius: 8px; color: var(--sub); font-size: 12px; }
-.tz-search-bar input { width: 100%; border: none; outline: none; background: transparent; color: var(--text); font: inherit; font-size: 12px; }
-.tz-icon-btn { width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; border-radius: 8px; color: var(--sub); cursor: pointer; border: 1px solid var(--border); background: var(--card2); }
-.tz-theme-toggle-knob { width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: var(--primary); box-shadow: 0 0 8px var(--primary-glow); font-size: 11px; }
-.tz-dashboard { flex: 1; overflow-y: auto; padding: 16px 20px; background: var(--bg); }
-.tz-metrics-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 10px; margin-bottom: 14px; }
-.tz-metric-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; transition: all 0.2s; }
-.tz-metric-card:hover, .tz-chart-card:hover { border-color: var(--primary); box-shadow: 0 0 20px var(--primary-dim); }
-.tz-metric-label { color: var(--sub); font-size: 9px; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase; }
-.tz-metric-value { margin: 6px 0 4px; color: var(--text); font-family: var(--font-mono); font-size: 22px; font-weight: 800; letter-spacing: -0.5px; }
-.tz-metric-value.success { color: var(--success); }
-.tz-metric-value.danger { color: var(--danger); }
-.tz-metric-value.warn { color: var(--warn); }
-.tz-metric-change { font-family: var(--font-mono); font-size: 10px; font-weight: 600; }
-.tz-metric-change.success { color: var(--success); }
-.tz-metric-change.danger { color: var(--danger); }
-.tz-metric-change.warn { color: var(--warn); }
-.tz-row { display: grid; gap: 10px; margin-bottom: 14px; }
-.tz-row-1 { grid-template-columns: 1fr 1fr 1fr 1fr; }
-.tz-row-2 { display: grid; grid-template-columns: 1.5fr 1fr 1fr; }
-.tz-chart-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; transition: all 0.2s; }
-.tz-chart-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-.tz-chart-title { color: var(--text); font-size: 13px; font-weight: 700; }
-.tz-select { padding: 4px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--card2); color: var(--sub); font-family: var(--font-ui); font-size: 11px; }
-.tz-analytics-panel { max-height: 360px; overflow-y: auto; }
-.tz-setup-list { display: flex; flex-direction: column; gap: 10px; }
-.tz-setup-item { padding: 4px 0; }
-.tz-setup-name { display: flex; justify-content: space-between; color: var(--text); font-size: 12px; margin-bottom: 2px; }
-.tz-setup-name span { color: var(--sub); font-size: 10px; }
-.tz-setup-bar-bg { height: 6px; overflow: hidden; border-radius: 3px; background: var(--primary-dim); }
-.tz-setup-bar { height: 100%; border-radius: 3px; transition: width 0.4s; }
-.tz-setup-stats { display: flex; gap: 12px; margin-top: 4px; font-size: 10px; color: var(--sub); }
-.tz-setup-stats b.success { color: var(--success); }
-.tz-setup-stats b.danger { color: var(--danger); }
-.tz-distribution-wrap { height: 220px; }
-.tz-distribution-wrap canvas { width: 100% !important; height: 220px !important; }
-.tz-behavior-summary { display: flex; gap: 16px; align-items: flex-start; }
-.tz-behavior-score { flex-shrink: 0; }
-.tz-bs-ring { position: relative; width: 90px; height: 90px; }
-.tz-bs-ring svg { width: 90px; height: 90px; transform: rotate(-90deg); }
-.tz-bs-bg { fill: none; stroke: var(--primary-dim); stroke-width: 3; }
-.tz-bs-fill { fill: none; stroke: var(--primary); stroke-width: 3; stroke-linecap: round; transition: stroke-dasharray 0.6s; }
-.tz-bs-center { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-family: var(--font-mono); font-size: 22px; font-weight: 800; color: var(--text); }
-.tz-bs-list { flex: 1; list-style: none; padding: 0; margin: 0; font-size: 11px; color: var(--sub); line-height: 1.6; }
-.tz-bs-list li::before { content: '•'; color: var(--primary); margin-right: 6px; }
-.tz-analytics-table { max-height: 400px; overflow-y: auto; }
-.tz-atable { width: 100%; border-collapse: collapse; }
-.tz-atable th { padding: 6px 10px; border-bottom: 1px solid var(--border); color: var(--sub); font-size: 9px; font-weight: 600; letter-spacing: 0.6px; text-align: left; text-transform: uppercase; }
-.tz-atable td { padding: 7px 10px; border-bottom: 1px solid var(--border); font-family: var(--font-mono); font-size: 11px; }
-.tz-alabel { color: var(--sub); font-weight: 500; }
-.tz-grouped-list { display: flex; flex-direction: column; gap: 8px; max-height: 360px; overflow-y: auto; }
-.tz-group-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--border); }
-.tz-group-info { min-width: 0; }
-.tz-group-info strong { font-size: 12px; display: block; }
-.tz-group-info span { font-size: 10px; color: var(--sub); }
-.tz-group-bar-bg { height: 6px; border-radius: 3px; background: var(--primary-dim); overflow: hidden; }
-.tz-group-bar { height: 100%; border-radius: 3px; }
-.tz-group-pnl { font-family: var(--font-mono); font-size: 12px; font-weight: 700; white-space: nowrap; }
-.tz-group-pnl.success { color: var(--success); }
-.tz-group-pnl.danger { color: var(--danger); }
-.tz-deep-panel { display: flex; flex-direction: column; gap: 12px; }
-.tz-deep-controls { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
-.tz-deep-trades { display: flex; flex-direction: column; gap: 6px; }
-.tz-deep-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; cursor: pointer; transition: all 0.2s; }
-.tz-deep-card:hover { border-color: var(--primary); }
-.tz-deep-card.expanded { border-color: var(--primary); box-shadow: 0 0 16px var(--primary-glow); }
-.tz-deep-head { display: flex; align-items: center; gap: 12px; padding: 10px 14px; }
-.tz-deep-symbol { font-weight: 700; font-size: 13px; width: 80px; }
-.tz-side-label { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
-.tz-side-label.success { background: rgba(0,208,132,0.15); color: var(--success); }
-.tz-side-label.danger { background: rgba(255,59,122,0.15); color: var(--danger); }
-.tz-deep-pnl { font-family: var(--font-mono); font-size: 14px; font-weight: 700; flex: 1; }
-.tz-deep-pnl.success { color: var(--success); }
-.tz-deep-pnl.danger { color: var(--danger); }
-.tz-deep-r { font-family: var(--font-mono); font-size: 11px; color: var(--sub); }
-.tz-deep-expand { color: var(--sub); font-size: 10px; }
-.tz-deep-body { border-top: 1px solid var(--border); padding: 14px; }
-.tz-deep-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px; }
-.tz-deep-grid div { }
-.tz-deep-grid label { display: block; font-size: 9px; color: var(--sub); text-transform: uppercase; letter-spacing: 0.5px; }
-.tz-deep-grid span { font-family: var(--font-mono); font-size: 12px; color: var(--text); }
-.tz-deep-metrics { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
-.tz-dm-item { font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 6px; }
-.tz-dm-item.success { background: rgba(0,208,132,0.1); color: var(--success); }
-.tz-dm-item.danger { background: rgba(255,59,122,0.1); color: var(--danger); }
-.tz-dm-item.warn { background: rgba(255,200,97,0.1); color: var(--warn); }
-.tz-deep-notes { font-size: 12px; color: var(--sub); font-style: italic; padding: 8px; background: var(--primary-dim); border-radius: 8px; }
-.tz-empty { text-align: center; color: var(--sub); padding: 40px; font-size: 13px; }
+/* Leverage global Dashboard CSS by wrapping it in .tz-dashboard-page */
+.daily-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+.daily-nav {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.nav-btn {
+  background: var(--lf-card-bg);
+  border: 1px solid var(--lf-border-color);
+  color: var(--lf-text-body);
+  font-size: 20px;
+  line-height: 1;
+  padding: 4px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.nav-btn:hover:not(:disabled) {
+  border-color: var(--lf-primary);
+  color: var(--lf-primary);
+}
+.nav-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+.daily-title {
+  font-size: 20px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+}
 
-.tz-streaks-wrap { display: flex; flex-direction: column; gap: 12px; }
-.tz-streaks-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.tz-streak-item { padding: 10px; border-radius: 8px; background: var(--card2); border: 1px solid var(--border); text-align: center; }
-.tz-streak-item.success { border-color: rgba(0,208,132,0.2); }
-.tz-streak-item.danger { border-color: rgba(255,59,122,0.2); }
-.tz-streak-item label { display: block; font-size: 9px; color: var(--sub); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
-.tz-streak-item strong { font-family: var(--font-mono); font-size: 14px; font-weight: 700; }
-.tz-streak-item.success strong { color: var(--success); }
-.tz-streak-item.danger strong { color: var(--danger); }
-.tz-holding-table-title { font-size: 11px; font-weight: 600; color: var(--text); border-bottom: 1px solid var(--border); padding-bottom: 4px; margin-top: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
-.tz-holding-list { display: flex; flex-direction: column; gap: 6px; }
-.tz-holding-row { display: grid; grid-template-columns: 1.2fr 0.8fr 1fr 1fr; gap: 8px; font-size: 11px; padding: 6px 0; border-bottom: 1px solid var(--border); }
-.tz-holding-row span:last-child { font-family: var(--font-mono); font-weight: 700; text-align: right; }
-.tz-holding-row span:last-child.success { color: var(--success); }
-.tz-holding-row span:last-child.danger { color: var(--danger); }
-@media (max-width: 1400px) {
-  .tz-metrics-grid { grid-template-columns: repeat(3, 1fr); }
-  .tz-row-1 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.daily-top-panel {
+  display: grid;
+  grid-template-columns: 2.5fr 1fr;
+  gap: 0;
+  background: var(--lf-card-bg);
+  border: 1px solid var(--lf-border-color);
+  border-radius: 12px;
+  margin-bottom: 24px;
+  overflow: hidden;
 }
-@media (max-width: 900px) {
-  .tz-page { --sidebar-w: 72px; }
-  .tz-logo-text, .tz-nav-label, .tz-nav-item:not(.active), .tz-user-info, .tz-user-arrow { display: none; }
-  .tz-nav-item { justify-content: center; padding: 12px; }
-  .tz-header { height: auto; flex-direction: column; padding: 12px; }
-  .tz-header-controls { width: 100%; flex-wrap: wrap; }
-  .tz-metrics-grid { grid-template-columns: 1fr; }
-  .tz-row-1, .tz-row-2 { grid-template-columns: 1fr; }
-  .tz-deep-grid { grid-template-columns: repeat(2, 1fr); }
+
+.equity-chart-container {
+  padding: 24px;
+  border-right: 1px solid var(--lf-border-color);
+  height: 250px;
 }
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+}
+.metric {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--lf-border-color);
+  border-right: 1px solid var(--lf-border-color);
+}
+.metric:nth-child(2n) { border-right: none; }
+.metric:nth-last-child(-n+2) { border-bottom: none; }
+
+.m-label {
+  font-size: 11px;
+  color: var(--lf-text-muted);
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+.m-val {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--lf-text-title);
+  font-family: monospace;
+}
+
+.pos { color: #00FF9D !important; }
+.neg { color: #FF003C !important; }
+
+/* Neon Cards and Tables */
+.neon-card {
+  box-shadow: 0 6px 20px rgba(255, 0, 127, 0.15), 0 2px 10px rgba(0,0,0,0.5);
+  border: 1px solid rgba(255, 0, 127, 0.3);
+  border-radius: 12px;
+  background: var(--lf-card-bg);
+  transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), box-shadow 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  position: relative;
+  z-index: 1;
+}
+
+.neon-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 30px rgba(255, 0, 127, 0.25), 0 8px 20px rgba(0,0,0,0.6);
+  z-index: 2;
+}
+
+.tz-table th {
+  text-align: left;
+  padding: 12px 16px;
+  color: var(--lf-primary);
+  font-weight: 700;
+  border-bottom: 1px solid var(--lf-border-color);
+  position: sticky;
+  top: 0;
+  background: #0d0d0d;
+  backdrop-filter: blur(10px);
+  z-index: 5;
+}
+
+.hover-row {
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.hover-row:hover {
+  background: rgba(255,0,127,0.05);
+}
+
+.pos-bg { background: rgba(0, 255, 157, 0.1); color: #00FF9D; }
+.neg-bg { background: rgba(255, 0, 60, 0.1); color: #FF003C; }
+
+/* Modal CSS */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.8);
+  backdrop-filter: blur(5px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.neon-modal {
+  background: var(--lf-card-bg);
+  border: 1px solid var(--lf-primary);
+  box-shadow: 0 0 30px rgba(255,0,127,0.2);
+  border-radius: 16px;
+  width: 500px;
+  max-width: 90vw;
+  overflow: hidden;
+  animation: slideUp 0.3s ease-out;
+}
+@keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+.modal-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--lf-border-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--lf-bg-body);
+}
+.modal-header h2 {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--lf-primary);
+}
+.close-btn {
+  background: none;
+  border: none;
+  color: var(--lf-text-muted);
+  font-size: 24px;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+.close-btn:hover { color: #FF003C; }
+.modal-body {
+  padding: 20px;
+}
+.detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.detail-item {
+  display: flex;
+  flex-direction: column;
+}
+.detail-item span {
+  font-size: 11px;
+  color: var(--lf-text-muted);
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.detail-item strong {
+  font-size: 14px;
+  font-family: monospace;
+}
+
+.ai-reason-box {
+  padding: 16px;
+  border-radius: 12px;
+  background: var(--lf-bg-body);
+}
+.ai-pos { border-left: 4px solid #00FF9D; box-shadow: 0 0 10px rgba(0, 255, 157, 0.1); }
+.ai-neg { border-left: 4px solid #FFC000; box-shadow: 0 0 10px rgba(255, 192, 0, 0.1); }
+
+.ai-reason-title {
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+.ai-pos .ai-reason-title { color: #00FF9D; }
+.ai-neg .ai-reason-title { color: #FFC000; }
+.ai-reason-text {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--lf-text-body);
+}
+
+.skeleton-pulse { animation: pulse 1.5s infinite; }
+@keyframes pulse {
+  0% { opacity: 0.5; }
+  50% { opacity: 0.8; }
+  100% { opacity: 0.5; }
+}
+.empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; text-align: center; background: var(--lf-card-bg); border: 1px dashed var(--lf-border-color); border-radius: 16px; margin: 20px; padding: 40px; }
 </style>

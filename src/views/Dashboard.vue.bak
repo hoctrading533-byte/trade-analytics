@@ -1,0 +1,660 @@
+<template>
+  <div class="tz-page" :data-theme="theme">
+    <aside class="tz-sidebar">
+      <div class="tz-sidebar-logo"><div class="tz-logo-icon">LF</div><div class="tz-logo-text">Lumina<span>Fox</span></div></div>
+      <nav class="tz-nav-section">
+        <div v-for="section in navSections" :key="section.label" class="tz-nav-group">
+          <div class="tz-nav-label">{{ section.label }}</div>
+          <RouterLink v-for="item in section.items" :key="item.label" class="tz-nav-item" :class="{ active: isNavActive(item) }" :to="item.to">
+            <span class="tz-nav-icon" v-html="item.icon"></span>{{ item.label }}
+          </RouterLink>
+        </div>
+      </nav>
+      <div class="tz-sidebar-user"><div class="tz-user-avatar">TA</div><div class="tz-user-info"><div class="tz-user-name">Trader Alex</div><div class="tz-user-plan">Premium Pro</div></div><span class="tz-user-arrow">›</span></div>
+    </aside>
+
+    <div class="tz-main">
+      <header class="tz-header">
+        <div class="tz-header-welcome">
+          <h2>Dashboard</h2>
+          <p>Last import: {{ syncLabel }} <a href="#" @click.prevent style="color: var(--primary); font-weight: 600;">Resync</a></p>
+        </div>
+        <div class="tz-header-controls">
+          <select v-model="journalStore.selectedAccountId" class="tz-select">
+            <option v-for="acc in journalStore.accounts" :key="acc.id" :value="acc.id">
+              {{ acc.accountName || 'Account' }} ({{ acc.loginId }})
+            </option>
+          </select>
+          <button class="tz-icon-btn" style="width: auto; padding: 0 12px; font-weight: 600;">Filters</button>
+          <button class="tz-icon-btn" style="width: auto; padding: 0 12px; font-weight: 600;">Date range</button>
+          <RouterLink class="tz-btn-add" to="/journal" style="background: var(--primary); box-shadow: 0 0 16px var(--primary-glow); color: #fff; padding: 8px 16px; border-radius: 8px; text-decoration: none; font-weight: 600;">Add Trade</RouterLink>
+          <LanguageToggle />
+          <button class="tz-icon-btn" type="button" @click="toggleTheme"><span class="tz-theme-toggle-knob">{{ theme === 'dark' ? '🌙' : '☀️' }}</span></button>
+        </div>
+      </header>
+
+      <main class="dashboard-scroll">
+        <!-- Top KPIs -->
+        <div class="kpi-row">
+          <div class="kpi-card">
+            <div class="kpi-label">Net PnL ⓘ <span class="trade-count">{{ analysis.total }}</span></div>
+            <div class="kpi-val" :class="analysis.netProfit >= 0 ? 'pos' : 'neg'">{{ money(analysis.netProfit) }}</div>
+          </div>
+          <div class="kpi-card gauge-card">
+            <div>
+              <div class="kpi-label">Trade win % ⓘ</div>
+              <div class="kpi-val">{{ analysis.winRate.toFixed(2) }}%</div>
+            </div>
+            <div class="gauge-wrap half-gauge"><canvas ref="tradeWinGaugeRef"></canvas></div>
+          </div>
+          <div class="kpi-card gauge-card">
+            <div>
+              <div class="kpi-label">Profit factor ⓘ</div>
+              <div class="kpi-val">{{ analysis.profitFactor.toFixed(2) }}</div>
+            </div>
+            <div class="gauge-wrap full-gauge"><canvas ref="pfGaugeRef"></canvas></div>
+          </div>
+          <div class="kpi-card gauge-card">
+            <div>
+              <div class="kpi-label">Day win % ⓘ</div>
+              <div class="kpi-val">{{ analysis.dayWinRate.toFixed(2) }}%</div>
+            </div>
+            <div class="gauge-wrap half-gauge"><canvas ref="dayWinGaugeRef"></canvas></div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Avg win/loss trade ⓘ</div>
+            <div class="kpi-val">{{ analysis.avgRR.toFixed(2) }}</div>
+            <div class="awl-bar">
+              <div class="awl-fill pos" :style="{ width: analysis.winBar + '%' }"></div>
+              <div class="awl-fill neg" :style="{ width: analysis.lossBar + '%' }"></div>
+            </div>
+            <div class="awl-labels">
+              <span class="pos">{{ money(analysis.avgWin) }}</span>
+              <span class="neg">{{ money(analysis.avgLoss) }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Grid Row 1 -->
+        <div class="grid-row-1">
+          <div class="tz-chart-card">
+            <div class="card-header">Lumina Score ⓘ</div>
+            <div class="radar-wrap"><canvas ref="radarRef"></canvas></div>
+            <div class="score-footer">
+              <div style="font-size: 12px; color: var(--sub);">Your Score</div>
+              <div class="score-val">{{ analysis.luminaScore.toFixed(2) }}</div>
+              <div class="score-bar"><div class="score-fill" :style="{ width: analysis.luminaScore + '%' }"></div></div>
+            </div>
+          </div>
+          <div class="tz-chart-card">
+            <div class="card-header">Progress tracker ⓘ <a href="#">View more</a></div>
+            <div class="heatmap-grid">
+              <div class="heatmap-days"><span>Mon</span><span>Wed</span><span>Fri</span></div>
+              <div class="heatmap-cells">
+                <div v-for="(week, wIdx) in heatmapWeeks" :key="wIdx" class="heat-col">
+                  <div v-for="(day, dIdx) in week" :key="dIdx" class="heat-cell" :class="day.level" :title="day.date + ': ' + money(day.pnl)"></div>
+                </div>
+              </div>
+            </div>
+            <div class="heatmap-legend">Less <div class="heat-cell lv-0"></div><div class="heat-cell lv-1"></div><div class="heat-cell lv-2"></div><div class="heat-cell lv-3"></div><div class="heat-cell lv-4"></div> More</div>
+          </div>
+          <div class="tz-chart-card" style="grid-column: span 2;">
+            <div class="card-header">Daily net cumulative PnL ⓘ</div>
+            <div class="chart-body"><canvas ref="cumulativeRef"></canvas></div>
+          </div>
+        </div>
+
+        <!-- Grid Row 2 -->
+        <div class="grid-row-2">
+          <div class="tz-chart-card">
+            <div class="card-header">Net daily PnL ⓘ</div>
+            <div class="chart-body"><canvas ref="dailyPnlRef"></canvas></div>
+          </div>
+          <div class="tz-chart-card" style="padding: 0;">
+            <div class="card-tabs"><div class="tab active">Recent trades</div><div class="tab">Open positions</div></div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Close Date</th><th>Symbol</th><th class="right">Net PnL</th></tr></thead>
+                <tbody>
+                  <tr v-for="trade in recentTrades" :key="trade.ticket">
+                    <td>{{ new Date(trade.timeline || trade.closeTime || trade.close_time || (trade.time ? trade.time * 1000 : Date.now())).toLocaleDateString() }}</td>
+                    <td>{{ trade.symbol }}</td>
+                    <td class="right" :class="(trade.profit || trade.pnl) >= 0 ? 'pos' : 'neg'">{{ money(trade.profit || trade.pnl) }}</td>
+                  </tr>
+                  <tr v-if="!recentTrades.length"><td colspan="3" class="empty-cell">No recent trades</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="tz-chart-card">
+            <div class="card-header">Account balance ⓘ</div>
+            <div class="empty-state">
+              <div class="icon">💰</div>
+              <div>Balance Chart Available</div>
+              <div class="chart-body" style="width: 100%; height: 100px; margin-top: 10px;"><canvas ref="balanceRef"></canvas></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Calendar Deep Dive -->
+        <div class="calendar-layout">
+          <div class="calendar-section tz-chart-card" style="padding: 20px;">
+            <div class="cal-header">
+              <button class="tz-icon-btn" @click="changeMonth(-1)">◀</button>
+              <h3 style="color: var(--text);">{{ currentMonthName }}</h3>
+              <button class="tz-icon-btn" @click="changeMonth(1)">▶</button>
+              <button class="cal-today">This month</button>
+              <div class="cal-stats">Monthly stats: <strong :class="monthlyPnl >= 0 ? 'pos' : 'neg'">{{ money(monthlyPnl) }}</strong> <span>{{ monthlyDays }} days</span></div>
+            </div>
+            <div class="cal-grid">
+              <div class="cal-dh">Sun</div><div class="cal-dh">Mon</div><div class="cal-dh">Tue</div><div class="cal-dh">Wed</div><div class="cal-dh">Thu</div><div class="cal-dh">Fri</div><div class="cal-dh">Sat</div>
+              <div v-for="day in calendarDays" :key="day.date" class="cal-day" :class="[day.type, { empty: !day.isCurrentMonth }]">
+                <span class="d-num">{{ day.dayOfMonth }}</span>
+                <div v-if="day.trades > 0" class="d-stats">
+                  <div class="d-pnl" :class="day.pnl >= 0 ? 'pos' : 'neg'">{{ money(day.pnl) }}</div>
+                  <div class="d-sub">{{ day.trades }} trade{{ day.trades > 1 ? 's' : '' }}</div>
+                  <div class="d-sub">{{ day.winRate.toFixed(1) }}%</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="weekly-stats">
+            <div v-for="(wk, idx) in weeklyStats" :key="idx" class="tz-chart-card week-card">
+              <div class="w-num">Week {{ idx + 1 }}</div>
+              <div class="w-pnl" :class="wk.pnl >= 0 ? 'pos' : 'neg'">{{ money(wk.pnl) }}</div>
+              <div class="w-days">{{ wk.days }} days</div>
+            </div>
+          </div>
+
+          <div class="charts-column">
+            <div class="tz-chart-card dd-card">
+              <div class="card-header">Drawdown ⓘ</div>
+              <div class="chart-body"><canvas ref="drawdownRef"></canvas></div>
+            </div>
+            <div class="tz-chart-card tp-card">
+              <div class="card-header">Trade time performance ⓘ</div>
+              <div class="chart-body"><canvas ref="scatterRef"></canvas></div>
+            </div>
+          </div>
+        </div>
+
+      </main>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
+import { RouterLink, useRoute } from 'vue-router'
+import Chart from 'chart.js/auto'
+import { useJournalStore } from '../stores/useJournalStore.js'
+import { computeTradingMetrics, enrichTrade } from '../lib/tradingMetrics.js'
+import LanguageToggle from '../components/LanguageToggle.vue'
+
+const route = useRoute()
+const theme = ref(localStorage.getItem('tz-theme') || 'dark')
+const journalStore = useJournalStore()
+
+const tradeWinGaugeRef = ref(null)
+const pfGaugeRef = ref(null)
+const dayWinGaugeRef = ref(null)
+const radarRef = ref(null)
+const cumulativeRef = ref(null)
+const dailyPnlRef = ref(null)
+const drawdownRef = ref(null)
+const scatterRef = ref(null)
+const balanceRef = ref(null)
+
+const chartInstances = []
+const currentDate = ref(new Date())
+
+const icons = {
+  grid: '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>',
+  doc: '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>',
+  bars: '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>',
+  wave: '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>',
+  play: '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>',
+  card: '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>',
+  heart: '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l7.78-7.78a5.5 5.5 0 0 0 1.06-8.84z"/></svg>',
+  gear: '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M4.93 4.93l1.41 1.41M12 2v2M12 20v2M2 12h2M20 12h2"/></svg>'
+}
+
+const navSections = [
+  { label: 'Main', items: [{ label: 'Dashboard', icon: icons.grid, to: '/dashboard' }, { label: 'Journal', icon: icons.doc, to: '/journal' }, { label: 'Analytics', icon: icons.bars, to: '/phan-tich' }, { label: 'Reports', icon: icons.bars, to: '/co-hoi' }, { label: 'Playbook', icon: icons.doc, to: '/playbook' }] },
+  { label: 'Tools', items: [{ label: 'Backtesting', icon: icons.wave, to: '/backtesting' }, { label: 'Replay', icon: icons.play, to: '/replay' }, { label: 'Accounts', icon: icons.card, to: '/ket-noi-may-chu' }] },
+  { label: 'Learn', items: [{ label: 'Mentor Mode', icon: icons.heart, to: '/mentor-mode' }, { label: 'Community', icon: icons.heart, to: '/bang-xep-hang' }, { label: 'Education', icon: icons.doc, to: '/education' }, { label: 'Settings', icon: icons.gear, to: '/cai-dat' }] }
+]
+
+function isNavActive(item) {
+  if (!item.to) return false
+  if (item.to === '/dashboard') return route.path === '/dashboard'
+  return route.path.startsWith(item.to)
+}
+
+function toggleTheme() {
+  theme.value = theme.value === 'dark' ? 'light' : 'dark'
+  localStorage.setItem('tz-theme', theme.value)
+  document.documentElement.setAttribute('data-theme', theme.value)
+  setTimeout(buildCharts, 50)
+}
+
+const tradeRows = computed(() => journalStore.rawTrades || [])
+
+function getTradeTime(t) {
+  return new Date(t.exitTime || t.closeTime || t.close_time || t.timeline || (t.time ? t.time * 1000 : Date.now())).getTime()
+}
+
+function getTradeProfit(t) {
+  return Number(t.profit || t.pnl || t.netProfit || 0)
+}
+
+const enrichedTrades = computed(() => {
+  return [...tradeRows.value].map(t => enrichTrade(t)).sort((a, b) => {
+    return getTradeTime(a) - getTradeTime(b)
+  })
+})
+
+const recentTrades = computed(() => [...enrichedTrades.value].reverse().slice(0, 5))
+
+const analysis = computed(() => {
+  const trs = enrichedTrades.value
+  let wins = 0, losses = 0, grossWin = 0, grossLoss = 0, totalPnl = 0
+  const dailyMap = new Map()
+
+  trs.forEach(t => {
+    const pnl = getTradeProfit(t)
+    totalPnl += pnl
+    if (pnl > 0) { wins++; grossWin += pnl }
+    else if (pnl < 0) { losses++; grossLoss += Math.abs(pnl) }
+
+    const dayKey = new Date(getTradeTime(t)).toISOString().split('T')[0]
+    if (!dailyMap.has(dayKey)) dailyMap.set(dayKey, { pnl: 0, count: 0, wins: 0 })
+    const d = dailyMap.get(dayKey)
+    d.pnl += pnl
+    d.count++
+    if (pnl > 0) d.wins++
+  })
+
+  const total = wins + losses
+  const winRate = total > 0 ? (wins / total) * 100 : 0
+  const pf = grossLoss > 0 ? grossWin / grossLoss : (grossWin > 0 ? 99 : 0)
+  
+  let winDays = 0, totalDays = 0
+  dailyMap.forEach(d => {
+    totalDays++
+    if (d.pnl > 0) winDays++
+  })
+  const dayWinRate = totalDays > 0 ? (winDays / totalDays) * 100 : 0
+
+  const avgWin = wins > 0 ? grossWin / wins : 0
+  const avgLoss = losses > 0 ? grossLoss / losses : 0
+  const avgRR = avgLoss > 0 ? avgWin / avgLoss : 0
+
+  const totalWLRatio = avgWin + avgLoss
+  const winBar = totalWLRatio > 0 ? (avgWin / totalWLRatio) * 100 : 50
+  const lossBar = totalWLRatio > 0 ? (avgLoss / totalWLRatio) * 100 : 50
+
+  const score = Math.min(100, Math.max(0, (winRate * 0.3) + (Math.min(pf, 3) / 3 * 100 * 0.3) + (dayWinRate * 0.4)))
+
+  return { total, wins, losses, netProfit: totalPnl, winRate, profitFactor: pf, dayWinRate, avgWin, avgLoss, avgRR, winBar, lossBar, luminaScore: score, dailyMap }
+})
+
+const syncLabel = computed(() => {
+  const snap = journalStore.accountSnapshot
+  if (snap && snap.updatedAt) return new Date(snap.updatedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+  return 'Just now'
+})
+
+const currentMonthName = computed(() => currentDate.value.toLocaleString('default', { month: 'long', year: 'numeric' }))
+
+const calendarData = computed(() => {
+  const y = currentDate.value.getFullYear()
+  const m = currentDate.value.getMonth()
+  const firstDay = new Date(y, m, 1)
+  const lastDay = new Date(y, m + 1, 0)
+  
+  const days = []
+  const startPadding = firstDay.getDay()
+  for (let i = startPadding - 1; i >= 0; i--) {
+    const d = new Date(y, m, -i)
+    days.push({ date: d, isCurrentMonth: false, pnl: 0, trades: 0, winRate: 0 })
+  }
+  
+  let mPnl = 0, mDays = 0, currWkPnl = 0, currWkDays = 0
+  const wStats = []
+
+  for (let i = 1; i <= lastDay.getDate(); i++) {
+    const d = new Date(y, m, i)
+    const key = d.toISOString().split('T')[0]
+    const stats = analysis.value.dailyMap.get(key)
+    
+    let pnl = 0, trds = 0, wr = 0, type = 'neutral'
+    if (stats) {
+      pnl = stats.pnl; trds = stats.count; wr = (stats.wins / stats.count) * 100
+      type = pnl >= 0 ? 'win-day' : 'loss-day'
+      mPnl += pnl; mDays++; currWkPnl += pnl; currWkDays++
+    }
+    
+    days.push({ date: d, dayOfMonth: i, isCurrentMonth: true, pnl, trades: trds, winRate: wr, type })
+    
+    if (d.getDay() === 6 || i === lastDay.getDate()) {
+      wStats.push({ pnl: currWkPnl, days: currWkDays })
+      currWkPnl = 0; currWkDays = 0
+    }
+  }
+  
+  const endPadding = 42 - days.length
+  for (let i = 1; i <= endPadding; i++) {
+    const d = new Date(y, m + 1, i)
+    days.push({ date: d, isCurrentMonth: false, pnl: 0, trades: 0, winRate: 0 })
+  }
+  
+  return { days, wStats, mPnl, mDays }
+})
+
+const calendarDays = computed(() => calendarData.value.days)
+const weeklyStats = computed(() => calendarData.value.wStats)
+const monthlyPnl = computed(() => calendarData.value.mPnl)
+const monthlyDays = computed(() => calendarData.value.mDays)
+
+function changeMonth(delta) {
+  currentDate.value = new Date(currentDate.value.getFullYear(), currentDate.value.getMonth() + delta, 1)
+}
+
+const heatmapWeeks = computed(() => {
+  const weeks = []
+  let currDate = new Date()
+  currDate.setDate(currDate.getDate() - (12 * 7))
+  
+  for (let w = 0; w < 12; w++) {
+    const week = []
+    for (let d = 0; d < 7; d++) {
+      const key = currDate.toISOString().split('T')[0]
+      const stats = analysis.value.dailyMap.get(key)
+      let level = 'lv-0'
+      if (stats && stats.count > 0) {
+        if (stats.pnl > 500) level = 'lv-4'
+        else if (stats.pnl > 100) level = 'lv-3'
+        else if (stats.pnl > 0) level = 'lv-2'
+        else level = 'lv-1'
+      }
+      week.push({ date: key, pnl: stats ? stats.pnl : 0, level })
+      currDate.setDate(currDate.getDate() + 1)
+    }
+    weeks.push(week)
+  }
+  return weeks
+})
+
+function money(val) {
+  return (val < 0 ? '-' : '') + '$' + Math.abs(val || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})
+}
+
+function buildCharts() {
+  chartInstances.forEach(c => c.destroy())
+  chartInstances.length = 0
+
+  const isDark = theme.value === 'dark'
+  const gridColor = isDark ? 'rgba(255,255,255,0.05)' : '#f3f4f6'
+  const fontColor = isDark ? '#b8a8b8' : '#6b7280'
+  const emptyColor = isDark ? '#2a142a' : '#f3f4f6'
+
+  Chart.defaults.color = fontColor
+  Chart.defaults.font.family = 'Inter'
+
+  const winColor = '#10b981'
+  const lossColor = '#ef4444'
+
+  if (tradeWinGaugeRef.value) {
+    chartInstances.push(new Chart(tradeWinGaugeRef.value, {
+      type: 'doughnut',
+      data: { datasets: [{ data: [analysis.value.winRate, 100 - analysis.value.winRate], backgroundColor: [winColor, lossColor], borderWidth: 0 }] },
+      options: { rotation: 270, circumference: 180, cutout: '75%', plugins: { tooltip: { enabled: false } }, responsive: true, maintainAspectRatio: false }
+    }))
+  }
+  if (dayWinGaugeRef.value) {
+    chartInstances.push(new Chart(dayWinGaugeRef.value, {
+      type: 'doughnut',
+      data: { datasets: [{ data: [analysis.value.dayWinRate, 100 - analysis.value.dayWinRate], backgroundColor: [winColor, lossColor], borderWidth: 0 }] },
+      options: { rotation: 270, circumference: 180, cutout: '75%', plugins: { tooltip: { enabled: false } }, responsive: true, maintainAspectRatio: false }
+    }))
+  }
+  if (pfGaugeRef.value) {
+    chartInstances.push(new Chart(pfGaugeRef.value, {
+      type: 'doughnut',
+      data: { datasets: [{ data: [analysis.value.profitFactor, Math.max(0, 3 - analysis.value.profitFactor)], backgroundColor: [winColor, emptyColor], borderWidth: 0 }] },
+      options: { cutout: '75%', plugins: { tooltip: { enabled: false } }, responsive: true, maintainAspectRatio: false }
+    }))
+  }
+
+  if (radarRef.value) {
+    chartInstances.push(new Chart(radarRef.value, {
+      type: 'radar',
+      data: {
+        labels: ['Consistency', 'Profit factor', 'Avg win/loss', 'Recovery factor', 'Max drawdown', 'Win %'],
+        datasets: [{
+          data: [80, Math.min(100, analysis.value.profitFactor * 30), Math.min(100, analysis.value.avgRR * 30), 70, 90, analysis.value.winRate],
+          backgroundColor: 'rgba(255, 45, 154, 0.2)',
+          borderColor: '#ff2d9a',
+          pointBackgroundColor: '#ff2d9a',
+          borderWidth: 2
+        }]
+      },
+      options: {
+        scales: { r: { ticks: { display: false }, grid: { color: gridColor }, angleLines: { color: gridColor }, pointLabels: { color: fontColor } } },
+        plugins: { legend: { display: false } }, responsive: true, maintainAspectRatio: false
+      }
+    }))
+  }
+
+  const equity = []
+  let cPnl = 0
+  enrichedTrades.value.forEach(t => {
+    cPnl += getTradeProfit(t)
+    equity.push({ x: new Date(getTradeTime(t)).toLocaleDateString(), y: cPnl })
+  })
+
+  if (cumulativeRef.value) {
+    const ctx = cumulativeRef.value.getContext('2d')
+    const grad = ctx.createLinearGradient(0, 0, 0, 200)
+    grad.addColorStop(0, 'rgba(16, 185, 129, 0.4)')
+    grad.addColorStop(1, 'rgba(16, 185, 129, 0.0)')
+
+    chartInstances.push(new Chart(cumulativeRef.value, {
+      type: 'line',
+      data: { labels: equity.map(e => e.x), datasets: [{ data: equity.map(e => e.y), borderColor: '#10b981', backgroundColor: grad, fill: true, tension: 0.3, pointRadius: 0 }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { display: false } }, y: { grid: { color: gridColor } } } }
+    }))
+  }
+
+  const dDates = Array.from(analysis.value.dailyMap.keys()).sort()
+  const dVals = dDates.map(d => analysis.value.dailyMap.get(d).pnl)
+  
+  if (dailyPnlRef.value) {
+    chartInstances.push(new Chart(dailyPnlRef.value, {
+      type: 'bar',
+      data: { labels: dDates, datasets: [{ data: dVals, backgroundColor: dVals.map(v => v >= 0 ? '#10b981' : '#ef4444'), borderRadius: 4 }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { display: false } }, y: { grid: { color: gridColor } } } }
+    }))
+  }
+
+  const dd = []
+  let peak = 0
+  cPnl = 0
+  enrichedTrades.value.forEach(t => {
+    cPnl += getTradeProfit(t)
+    if (cPnl > peak) peak = cPnl
+    dd.push({ x: new Date(getTradeTime(t)).toLocaleDateString(), y: cPnl - peak })
+  })
+
+  if (drawdownRef.value) {
+    const ctx = drawdownRef.value.getContext('2d')
+    const grad = ctx.createLinearGradient(0, 0, 0, 150)
+    grad.addColorStop(0, 'rgba(239, 68, 68, 0.0)')
+    grad.addColorStop(1, 'rgba(239, 68, 68, 0.4)')
+
+    chartInstances.push(new Chart(drawdownRef.value, {
+      type: 'line',
+      data: { labels: dd.map(d => d.x), datasets: [{ data: dd.map(d => d.y), borderColor: '#ff3b7a', backgroundColor: grad, fill: true, tension: 0.1, pointRadius: 0 }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { display: false } }, y: { grid: { color: gridColor } } } }
+    }))
+  }
+
+  const scatterData = enrichedTrades.value.map(t => {
+    const d = new Date(getTradeTime(t))
+    const pnl = getTradeProfit(t)
+    return {
+      x: d.getHours() + (d.getMinutes() / 60),
+      y: pnl,
+      c: pnl >= 0 ? '#10b981' : '#ef4444'
+    }
+  })
+
+  if (scatterRef.value) {
+    chartInstances.push(new Chart(scatterRef.value, {
+      type: 'scatter',
+      data: { datasets: [{ data: scatterData, backgroundColor: scatterData.map(d => d.c), pointRadius: 4 }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { min: 0, max: 24, grid: { color: gridColor } }, y: { grid: { color: gridColor } } } }
+    }))
+  }
+}
+
+onMounted(async () => {
+  document.documentElement.setAttribute('data-theme', theme.value)
+  await journalStore.fetchAccounts()
+  journalStore.startRealtimeSync()
+  setTimeout(buildCharts, 200)
+})
+
+watch(() => journalStore.rawTrades, () => {
+  nextTick(buildCharts)
+}, { deep: true })
+
+onUnmounted(() => {
+  journalStore.stopRealtimeSync()
+  chartInstances.forEach(c => c.destroy())
+})
+</script>
+
+<style scoped>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+/* GLOBAL THEME VARIABLES FROM LUMINA FOX */
+.tz-page { --bg: #07070a; --card: #141018; --card2: #1a1320; --border: #2a142a; --primary: #ff2d9a; --primary-glow: rgba(255,45,154,0.18); --primary-dim: rgba(255,45,154,0.08); --hot: #ff4da6; --text: #ffffff; --sub: #b8a8b8; --success: #00d084; --danger: #ff3b7a; --sidebar-w: 220px; --header-h: 64px; --radius: 16px; --font-ui: 'Inter', sans-serif; --font-mono: 'JetBrains Mono', monospace; display: flex; width: 100%; height: 100vh; overflow: hidden; background: var(--bg); color: var(--text); font-family: var(--font-ui); }
+.tz-page[data-theme='light'] { --bg: #fff7fb; --card: #ffffff; --card2: #fff0f7; --border: #f2d6e6; --primary: #ff3b9d; --primary-glow: rgba(255,59,157,0.1); --primary-dim: rgba(255,59,157,0.05); --hot: #ff3b9d; --text: #17121a; --sub: #6f6472; --success: #00a86b; --danger: #ff3366; }
+
+/* SIDEBAR MATCHING JOURNAL */
+.tz-sidebar { width: var(--sidebar-w); min-width: var(--sidebar-w); height: 100vh; display: flex; flex-direction: column; background: var(--card); border-right: 1px solid var(--border); }
+.tz-sidebar-logo { display: flex; align-items: center; gap: 10px; padding: 20px 18px 16px; border-bottom: 1px solid var(--border); }
+.tz-logo-icon { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 8px; background: linear-gradient(135deg, var(--primary), var(--hot)); color: #fff; font-size: 16px; font-weight: 800; }
+.tz-logo-text { color: var(--text); font-size: 16px; font-weight: 700; }
+.tz-logo-text span { color: var(--primary); }
+.tz-nav-section { flex: 1; padding: 10px 0; }
+.tz-nav-label { padding: 8px 18px 4px; color: var(--sub); font-size: 9px; font-weight: 600; letter-spacing: 1.2px; text-transform: uppercase; }
+.tz-nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 18px; color: var(--sub); text-decoration: none; font-size: 13px; font-weight: 500; transition: all 0.18s; }
+.tz-nav-item:hover, .tz-nav-item.active { color: var(--primary); background: var(--primary-dim); font-weight: 600; }
+.tz-nav-item.active::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--primary); border-radius: 0 3px 3px 0; }
+.tz-nav-icon { width: 16px; height: 16px; display: inline-flex; opacity: 0.8; }
+.tz-sidebar-user { display: flex; align-items: center; gap: 10px; padding: 14px 18px; border-top: 1px solid var(--border); }
+.tz-user-avatar { width: 34px; height: 34px; border-radius: 50%; background: linear-gradient(135deg, var(--primary), #a020f0); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #fff; }
+.tz-user-info { flex: 1; }
+.tz-user-name { font-size: 12px; font-weight: 600; color: var(--text); }
+.tz-user-plan { font-size: 10px; color: var(--primary); }
+
+/* MAIN CONTENT HEADER */
+.tz-main { flex: 1; min-width: 0; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+.tz-header { height: var(--header-h); display: flex; align-items: center; gap: 12px; padding: 0 20px; background: var(--card); border-bottom: 1px solid var(--border); }
+.tz-header-welcome { flex: 1; }
+.tz-header-welcome h2 { margin: 0; font-size: 18px; font-weight: 700; color: var(--text); }
+.tz-header-welcome p { margin: 2px 0 0; font-size: 11px; color: var(--sub); }
+.tz-header-controls { display: flex; align-items: center; gap: 8px; }
+.tz-select { padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--card2); color: var(--text); font-size: 13px; font-weight: 500; cursor: pointer; }
+.tz-icon-btn { height: 34px; display: flex; align-items: center; justify-content: center; border-radius: 8px; cursor: pointer; border: 1px solid var(--border); background: var(--card2); color: var(--sub); }
+.tz-theme-toggle-knob { width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: var(--primary); box-shadow: 0 0 8px var(--primary-glow); font-size: 11px; }
+
+/* DASHBOARD LAYOUT */
+.dashboard-scroll { flex: 1; overflow-y: auto; padding: 24px 32px; display: flex; flex-direction: column; gap: 20px; background: var(--bg); }
+.tz-chart-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+.card-header { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 16px; display: flex; justify-content: space-between; }
+.card-header a { color: var(--primary); text-decoration: none; font-size: 12px; }
+.chart-body { height: 220px; position: relative; }
+.pos { color: var(--success) !important; }
+.neg { color: var(--danger) !important; }
+
+.kpi-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; }
+.kpi-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px 20px; display: flex; flex-direction: column; justify-content: space-between; }
+.gauge-card { flex-direction: row; align-items: center; }
+.kpi-label { font-size: 12px; color: var(--sub); font-weight: 500; margin-bottom: 8px; }
+.kpi-val { font-size: 24px; font-weight: 700; color: var(--text); }
+.trade-count { background: var(--card2); padding: 2px 6px; border-radius: 4px; font-size: 10px; margin-left: 4px; border: 1px solid var(--border); }
+.gauge-wrap { position: relative; }
+.half-gauge { width: 70px; height: 35px; margin-top: 10px; }
+.full-gauge { width: 50px; height: 50px; }
+
+.awl-bar { display: flex; height: 6px; border-radius: 3px; overflow: hidden; margin: 12px 0 6px; background: var(--border); }
+.awl-fill.pos { background: var(--success); }
+.awl-fill.neg { background: var(--danger); }
+.awl-labels { display: flex; justify-content: space-between; font-size: 11px; font-weight: 600; }
+
+.grid-row-1 { display: grid; grid-template-columns: 300px 300px 1fr; gap: 20px; }
+.radar-wrap { height: 180px; }
+.score-footer { margin-top: 16px; }
+.score-val { font-size: 24px; font-weight: 700; margin: 4px 0; color: var(--text); }
+.score-bar { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+.score-fill { height: 100%; background: linear-gradient(90deg, #f59e0b, var(--success)); }
+
+.heatmap-grid { display: flex; gap: 8px; height: 160px; }
+.heatmap-days { display: flex; flex-direction: column; justify-content: space-between; font-size: 10px; color: var(--sub); padding-top: 8px; padding-bottom: 8px; }
+.heatmap-cells { display: flex; gap: 4px; }
+.heat-col { display: flex; flex-direction: column; gap: 4px; }
+.heat-cell { width: 12px; height: 12px; border-radius: 2px; background: var(--border); }
+.heat-cell.lv-0 { background: var(--card2); }
+.heat-cell.lv-1 { background: rgba(16, 185, 129, 0.3); }
+.heat-cell.lv-2 { background: rgba(16, 185, 129, 0.6); }
+.heat-cell.lv-3 { background: rgba(16, 185, 129, 0.8); }
+.heat-cell.lv-4 { background: #10b981; }
+.heatmap-legend { display: flex; align-items: center; justify-content: flex-end; gap: 4px; font-size: 11px; color: var(--sub); margin-top: auto; padding-top: 16px; }
+
+.grid-row-2 { display: grid; grid-template-columns: 300px 1fr 300px; gap: 20px; }
+.card-tabs { display: flex; gap: 16px; border-bottom: 1px solid var(--border); padding: 20px 20px 0; }
+.tab { padding-bottom: 12px; font-size: 13px; font-weight: 600; color: var(--sub); cursor: pointer; border-bottom: 2px solid transparent; }
+.tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+.table-wrap table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.table-wrap th { text-align: left; padding: 8px 16px; color: var(--sub); font-weight: 500; border-bottom: 1px solid var(--border); }
+.table-wrap td { padding: 12px 16px; border-bottom: 1px solid var(--border); font-weight: 500; color: var(--text); }
+.table-wrap th.right, .table-wrap td.right { text-align: right; }
+.empty-cell { text-align: center; color: var(--sub); padding: 32px !important; }
+.empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 220px; color: var(--sub); font-size: 13px; }
+.empty-state .icon { font-size: 32px; margin-bottom: 8px; opacity: 0.5; }
+
+.calendar-layout { display: grid; grid-template-columns: 1fr 100px 300px; gap: 20px; }
+.cal-header { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
+.cal-today { font-size: 12px; font-weight: 500; border: 1px solid var(--border); background: var(--card2); color: var(--text); padding: 6px 10px; border-radius: 6px; }
+.cal-stats { margin-left: auto; font-size: 13px; color: var(--sub); }
+.cal-stats span { font-size: 11px; background: var(--card2); padding: 2px 6px; border-radius: 4px; margin-left: 8px; border: 1px solid var(--border); }
+
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.cal-dh { background: var(--card2); padding: 12px; text-align: center; font-size: 12px; font-weight: 600; color: var(--sub); }
+.cal-day { background: var(--card); min-height: 100px; padding: 8px; position: relative; }
+.tz-page[data-theme='light'] .cal-day.empty { background: #f9fafb; }
+.tz-page[data-theme='dark'] .cal-day.empty { background: #110d14; }
+.tz-page[data-theme='light'] .cal-day.win-day { background: #ecfdf5; }
+.tz-page[data-theme='dark'] .cal-day.win-day { background: rgba(0, 208, 132, 0.1); }
+.tz-page[data-theme='light'] .cal-day.loss-day { background: #fef2f2; }
+.tz-page[data-theme='dark'] .cal-day.loss-day { background: rgba(255, 59, 122, 0.1); }
+.d-num { font-size: 12px; color: var(--sub); font-weight: 500; }
+.cal-day.empty .d-num { opacity: 0.5; }
+.d-stats { margin-top: 8px; text-align: center; }
+.d-pnl { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+.d-sub { font-size: 10px; color: var(--sub); }
+
+.weekly-stats { display: flex; flex-direction: column; gap: 1px; padding-top: 60px; }
+.week-card { min-height: 100px; border-radius: 0; border: none; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; background: transparent; box-shadow: none; padding: 8px; }
+.w-num { font-size: 11px; color: var(--sub); margin-bottom: 4px; }
+.w-pnl { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+.w-days { font-size: 10px; background: var(--card2); border: 1px solid var(--border); padding: 2px 6px; border-radius: 4px; color: var(--sub); }
+
+.charts-column { display: flex; flex-direction: column; gap: 20px; }
+.dd-card .chart-body, .tp-card .chart-body { height: 180px; }
+</style>

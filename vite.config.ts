@@ -8,7 +8,7 @@ const enableVueDevTools = process.env.VITE_ENABLE_VUE_DEVTOOLS === 'true'
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: './',
+  base: '/trade-analytics/',
   plugins: [vue(), ...(enableVueDevTools ? [vueDevTools()] : [])],
   resolve: {
     alias: {
