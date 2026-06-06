@@ -273,6 +273,7 @@ const corsAllowedOrigins = [
   FRONTEND_URL,
   'http://localhost:5173',
   'http://127.0.0.1:5173',
+  'https://hoctrading533-byte.github.io',
   ...CORS_EXTRA_ORIGINS
 ]
 app.use(

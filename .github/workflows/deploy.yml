@@ -35,7 +35,7 @@ jobs:
       - name: Build Project
         run: npm run build
         env:
-          # If you have public env variables, you can declare them here
+          VITE_API_BASE_URL: 'https://blog-sector-apparently-moments.trycloudflare.com'
           VITE_ENABLE_VUE_DEVTOOLS: 'false'
 
       - name: Fix Vue Router 404 on GitHub Pages
