@@ -1,7 +1,7 @@
 <template>
   <div class="tz-page" :data-theme="theme" :style="spotlightStyle" @pointermove="onPointerMove" @pointerleave="onPointerLeave">
     <aside class="tz-sidebar">
-      <div class="tz-sidebar-logo"><div class="tz-logo-icon">TZ</div><div class="tz-logo-text">Trade<span>Zella</span></div></div>
+      <div class="tz-sidebar-logo"><div class="tz-logo-icon">LT</div><div class="tz-logo-text">Lumina<span>Trade</span></div></div>
       <nav class="tz-nav-section">
         <div v-for="section in navSections" :key="section.label" class="tz-nav-group">
           <div class="tz-nav-label">{{ section.label }}</div>

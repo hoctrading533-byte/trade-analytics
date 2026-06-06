@@ -59,8 +59,8 @@ function logout() { userStore.logout(); router.push('/login') }
 <template>
   <aside class="sidebar">
     <div class="sidebar-logo" @click="goHome">
-      <div class="logo-icon">TZ</div>
-      <div class="logo-text">Trade<span>Zella</span></div>
+      <div class="logo-icon">LT</div>
+      <div class="logo-text">Lumina<span>Trade</span></div>
     </div>
     <nav class="nav-section">
       <template v-for="group in menuGroups" :key="group.labelKey">
